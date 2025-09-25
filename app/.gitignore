@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+.env.api-key
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -22,4 +23,3 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
-./.env.api-key
