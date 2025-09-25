@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'help_desk' => [
+        'api_key' => env('HELP_DESK_KEY'),
+    ]
+
 ];
