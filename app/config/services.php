@@ -37,6 +37,7 @@ return [
 
     'help_desk' => [
         'api_key' => env('HELP_DESK_KEY'),
+        'domain' => env('HELP_DESK_DOMAIN'),
     ]
 
 ];

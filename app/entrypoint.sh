@@ -10,9 +10,7 @@ chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Если нет vendor — ставим зависимости
-if [ ! -d "vendor" ]; then
-    composer install --no-interaction --prefer-dist --optimize-autoloader
-fi
+composer install --no-interaction --prefer-dist --optimize-autoloader
 
 # Генерируем ключ (если нет)
 php artisan key:generate --force || true
