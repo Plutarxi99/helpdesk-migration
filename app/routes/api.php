@@ -9,6 +9,7 @@ Route::middleware('api')
             function () {
                 Route::get('/', 'getHelpDesks');
                 Route::get('/requests', 'getRequests');
+                Route::get('/contacts', 'getContacts');
             }
         );
     }

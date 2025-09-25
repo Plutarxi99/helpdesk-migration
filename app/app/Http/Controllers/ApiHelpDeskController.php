@@ -20,4 +20,9 @@ class ApiHelpDeskController extends Controller
     {
         return $this->service->getRequests();
     }
+
+    public function getContacts()
+    {
+        return $this->service->getContacts();
+    }
 }

@@ -17,4 +17,15 @@ class ApiHelpDeskRepository
             ]
         );
     }
+
+    public function saveContacts($request): void
+    {
+        TableForMigration::query()->create(
+            [
+                'source' => TableSourceEnum::CONTACTS,
+                'json_data' => $request,
+                'unique_id' => $request['id'],
+            ]
+        );
+    }
 }
