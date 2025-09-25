@@ -8,7 +8,7 @@ Route::middleware('api')
         Route::prefix('help-desks')->controller(ApiHelpDeskController::class)->group(
             function () {
                 Route::get('/', 'getHelpDesks');
-                Route::get('/requests', 'getRequest');
+                Route::get('/requests', 'getRequests');
             }
         );
     }

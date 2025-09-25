@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ApiHelpDeskService;
 use Illuminate\Support\Facades\Http;
 
 class ApiHelpDeskController extends Controller
 {
+    public function __construct(
+        protected readonly ApiHelpDeskService $service
+    ) {}
+
     public function getHelpDesks()
     {
         return Http::HelpDesk()->get('departments/')->json();
     }
 
-    public function getRequest()
+    public function getRequests()
     {
-        return Http::HelpDesk()->get('tickets/')->json();
+        return $this->service->getRequests();
     }
 }
