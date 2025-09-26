@@ -51,6 +51,6 @@ class ApiHelpDeskUploadController extends Controller
      */
     public function uploadAnswers(): array
     {
-        return $this->service->uploadAnswers(1, 4000);
+        return $this->service->uploadAnswers(1, 4500);
     }
 }

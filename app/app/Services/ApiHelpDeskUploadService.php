@@ -106,7 +106,7 @@ class ApiHelpDeskUploadService
             }
         }
 
-        return $this->result("Загружено {$saved_count} ответов", $saved_count);
+        return $this->result("Загружено $saved_count ответов", $saved_count);
     }
 
     /**
