@@ -41,7 +41,7 @@ class ApiHelpDeskUploadController extends Controller
      */
     public function uploadComments(): array
     {
-        return $this->service->uploadComments(1, 100);
+        return $this->service->uploadComments(1, 4000);
     }
 
     /**
@@ -51,6 +51,6 @@ class ApiHelpDeskUploadController extends Controller
      */
     public function uploadAnswers(): array
     {
-        return $this->service->uploadAnswers(1, 100);
+        return $this->service->uploadAnswers(1, 4000);
     }
 }
