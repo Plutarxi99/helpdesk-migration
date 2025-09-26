@@ -9,22 +9,26 @@ class ApiHelpDeskRepository
 {
     public function saveRequest($request): void
     {
-        TableForMigration::query()->create(
+        TableForMigration::query()->firstOrCreate(
             [
                 'source' => TableSourceEnum::REQUEST,
-                'json_data' => $request,
                 'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
             ]
         );
     }
 
     public function saveContacts($request): void
     {
-        TableForMigration::query()->create(
+        TableForMigration::query()->firstOrCreate(
             [
                 'source' => TableSourceEnum::CONTACTS,
-                'json_data' => $request,
                 'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
             ]
         );
     }

@@ -90,10 +90,6 @@ class ApiHelpDeskService
                 $this->repository->saveContacts($request);
                 $saved_count++;
             }
-
-            if ($page < $total_pages) {
-                usleep(200000);
-            }
         }
 
         return [

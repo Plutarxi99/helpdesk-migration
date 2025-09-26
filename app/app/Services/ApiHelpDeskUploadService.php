@@ -17,6 +17,24 @@ class ApiHelpDeskUploadService
     {
     }
 
+    protected function mapUserId(int $userId): int
+    {
+        $mapping = [
+            2093 => 708,
+            2092 => 777,
+            1090 => 700,
+            1092 => 701,
+            1093 => 702,
+            1094 => 703,
+            1095 => 704,
+            1097 => 705,
+            1098 => 706,
+            1099 => 707,
+        ];
+
+        return $mapping[$userId] ?? $userId;
+    }
+
     /**
      * Загружает заявки
      */
@@ -26,6 +44,8 @@ class ApiHelpDeskUploadService
 
         foreach (TableForMigration::getNotSend(TableSourceEnum::REQUEST, $fromId, $toId) as $request) {
             $data = $request->json_data;
+
+            $data['user_id'] = $this->mapUserId($data['user_id']);
 
             $payload = [
                 'title' => $data['title'] ?? 'Без названия',
@@ -42,7 +62,7 @@ class ApiHelpDeskUploadService
             ];
 
             $attempts = 0;
-            $maxAttempts = 5;
+            $maxAttempts = 2;
             $success = false;
 
             while (!$success && $attempts < $maxAttempts) {
@@ -99,7 +119,6 @@ class ApiHelpDeskUploadService
             'message' => "Загружено {$savedCount} заявок",
         ];
     }
-
 
     /**
      * Загружает пользователей
@@ -225,7 +244,7 @@ class ApiHelpDeskUploadService
             }
 
             $attempts = 0;
-            $maxAttempts = 5;
+            $maxAttempts = 2;
             $success = false;
 
             while (!$success && $attempts < $maxAttempts) {
@@ -311,7 +330,7 @@ class ApiHelpDeskUploadService
             $parts = mb_str_split($data['text'], $maxTextLength);
 
             $attempts = 0;
-            $maxAttempts = 5;
+            $maxAttempts = 2;
             $success = false;
 
             while (!$success && $attempts < $maxAttempts) {
