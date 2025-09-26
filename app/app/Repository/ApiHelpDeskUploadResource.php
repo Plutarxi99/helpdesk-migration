@@ -7,7 +7,6 @@ use Exception;
 
 class ApiHelpDeskUploadResource
 {
-
     /**
      * Маппит несуществующие ID заявок
      *
@@ -94,7 +93,6 @@ class ApiHelpDeskUploadResource
             'owner_id' => $data['owner_id'] ?? 0,
             'user_id' => $this->mapUserId($data['user_id']) ?? null,
             'user_email' => $data['user_email'] ?? null,
-//                'custom_fields' => $data['custom_fields'] ?? [],
             'tags' => $data['tags'] ?? [],
         ];
     }
