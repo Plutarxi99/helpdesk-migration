@@ -54,4 +54,17 @@ class ApiHelpDeskRepository
             ]
         );
     }
+
+    public function saveDepartments($request): void
+    {
+        TableForMigration::query()->firstOrCreate(
+            [
+                'source' => TableSourceEnum::DEPARTMENTS,
+                'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
+            ]
+        );
+    }
 }

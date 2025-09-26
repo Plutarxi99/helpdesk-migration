@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SendEnum;
 use App\Enums\TableSourceEnum;
 use App\Models\TableForMigration;
 use App\Repository\ApiHelpDeskUploadResource;
@@ -12,37 +13,30 @@ class ApiHelpDeskUploadService
 {
     public function __construct(
         protected ApiHelpDeskUploadResource $repository
-    ) {}
+    )
+    {
+    }
 
     /**
-     * @param int|null $fromId - минимальный ID для загрузки
-     * @param int|null $toId - максимальный ID для загрузки
+     * Загружает заявки
      */
     public function uploadRequests(?int $fromId = null, ?int $toId = null): array
     {
         $savedCount = 0;
-        $requestCount = 0;
-        $startTime = microtime(true);
 
-        $query = TableForMigration::query()
-            ->where('source', TableSourceEnum::REQUEST);
-
-        if ($fromId !== null) {
-            $query->where('id_table_for_migrations', '>=', $fromId);
-        }
-
-        if ($toId !== null) {
-            $query->where('id_table_for_migrations', '<=', $toId);
-        }
-
-        $requests = $query->get();
+        $requests = TableForMigration::query()
+            ->where('source', TableSourceEnum::REQUEST)
+            ->where('is_send', SendEnum::NOT_SEND)
+            ->when($fromId !== null, fn($q) => $q->where('id_table_for_migrations', '>=', $fromId))
+            ->when($toId !== null, fn($q) => $q->where('id_table_for_migrations', '<=', $toId))
+            ->get();
 
         foreach ($requests as $request) {
             $data = $request->json_data;
 
             $payload = [
                 'title' => $data['title'] ?? 'Без названия',
-                'description' => $data['description'] ?? '',
+                'description' => !empty($data['description']) ? $data['description'] : 'Без описания',
                 'status_id' => $data['status_id'] ?? 'open',
                 'priority_id' => $data['priority_id'] ?? 1,
                 'type_id' => $data['type_id'] ?? 0,
@@ -50,23 +44,54 @@ class ApiHelpDeskUploadService
                 'owner_id' => $data['owner_id'] ?? 0,
                 'user_id' => $data['user_id'] ?? null,
                 'user_email' => $data['user_email'] ?? null,
-                'ticket_lock' => $data['ticket_lock'] ?? false,
                 'custom_fields' => $data['custom_fields'] ?? [],
                 'tags' => $data['tags'] ?? [],
             ];
 
-            $response = Http::HelpDesk()->post('tickets/', $payload);
-            $requestCount++;
+            $attempts = 0;
+            $maxAttempts = 5;
+            $success = false;
 
-            if ($response->successful()) {
-                $savedCount++;
-                Log::info("Заявка ID {$request->id_table_for_migrations} загружена");
-            } else {
-                Log::error("Ошибка загрузки заявки ID {$request->id_table_for_migrations}: " . $response->body());
+            while (!$success && $attempts < $maxAttempts) {
+                $attempts++;
+
+                try {
+                    $response = Http::HelpDeskEgor()->post('tickets/', $payload);
+
+                    if ($response->successful()) {
+                        $savedCount++;
+                        $success = true;
+
+                        Log::info('Заявка успешно загружена', [
+                            'request_id' => $request->id_table_for_migrations,
+                        ]);
+
+                        $request->update(['is_send' => SendEnum::SEND]);
+                    } else {
+                        Log::error('Ошибка при загрузке заявки', [
+                            'request_id' => $request->id_table_for_migrations,
+                            'status' => $response->status(),
+                            'body' => $response->json(),
+                            'attempt' => $attempts,
+                        ]);
+                        sleep(1);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('HTTP-ошибка при загрузке заявки', [
+                        'request_id' => $request->id_table_for_migrations,
+                        'attempt' => $attempts,
+                        'error' => $e->getMessage(),
+                    ]);
+                    sleep(1);
+                }
             }
 
-            // Применяем лимит 300 запросов в минуту
-            $this->applyRateLimit($requestCount, $startTime);
+            if (!$success) {
+                Log::warning('Не удалось загрузить заявку после всех попыток', [
+                    'request_id' => $request->id_table_for_migrations,
+                    'attempts' => $maxAttempts,
+                ]);
+            }
         }
 
         return [
@@ -75,59 +100,36 @@ class ApiHelpDeskUploadService
         ];
     }
 
-    private function applyRateLimit(int &$requestCount, float &$startTime): void
-    {
-        $maxRequestsPerMinute = 300;
-
-        if ($requestCount >= $maxRequestsPerMinute) {
-            $elapsed = microtime(true) - $startTime;
-            if ($elapsed < 60) {
-                $sleep = (60 - $elapsed) * 1000000; // мкс
-                Log::info("Достигнут лимит {$maxRequestsPerMinute} RPM. Спим {$sleep} мкс...");
-                usleep((int)$sleep);
-            }
-            $requestCount = 0;
-            $startTime = microtime(true);
-        } else {
-            // равномерная задержка между запросами
-            $pause = 60 / $maxRequestsPerMinute;
-            usleep($pause * 1000000);
-        }
-    }
 
     /**
-     * Загружает пользователей из базы в CRM
-     *
-     * @param int|null $fromId
-     * @param int|null $toId
+     * Загружает пользователей
      */
     public function uploadContacts(?int $fromId = null, ?int $toId = null): array
     {
         $savedCount = 0;
-        $requestCount = 0;
-        $startTime = microtime(true);
 
         $users = TableForMigration::query()
-            ->where('source', TableSourceEnum::CONTACTS);
-
-        if ($fromId !== null) {
-            $users->where('id_table_for_migrations', '>=', $fromId);
-        }
-
-        if ($toId !== null) {
-            $users->where('id_table_for_migrations', '<=', $toId);
-        }
-
-        $users = $users->get();
+            ->where('source', TableSourceEnum::CONTACTS)
+            ->where('is_send', SendEnum::NOT_SEND)
+            ->when($fromId !== null, fn($q) => $q->where('id_table_for_migrations', '>=', $fromId))
+            ->when($toId !== null, fn($q) => $q->where('id_table_for_migrations', '<=', $toId))
+            ->get();
 
         foreach ($users as $user) {
             $data = $user->json_data;
+
+            if (empty($data['email'])) {
+                Log::warning('Пропущен пользователь без email', [
+                    'user_id' => $user->id_table_for_migrations,
+                ]);
+                continue;
+            }
 
             $payload = [
                 'name' => $data['name'] ?? 'No Name',
                 'lastname' => $data['lastname'] ?? '',
                 'alias' => $data['alias'] ?? '',
-                'email' => $data['email'] ?? null,
+                'email' => $data['email'],
                 'phone' => $data['phone'] ?? '',
                 'website' => $data['website'] ?? '',
                 'organization' => $data['organization']['name'] ?? null,
@@ -139,26 +141,57 @@ class ApiHelpDeskUploadService
                 'group_id' => $data['group']['id'] ?? 1,
                 'department' => $data['department'] ?? [1],
                 'custom_fields' => $data['custom_fields'] ?? [],
-                'password' => 'temporaryPassword123', // нужно указать пароль
+                'password' => 'password',
             ];
 
-            if (empty($payload['email'])) {
-                Log::warning("Пропущен пользователь с пустым email: ID {$user->id_table_for_migrations}");
-                continue;
+            $attempts = 0;
+            $maxAttempts = 5;
+            $success = false;
+
+            while (!$success && $attempts < $maxAttempts) {
+                $attempts++;
+
+                try {
+                    $response = Http::HelpDeskEgor()->post('users/', $payload);
+
+                    if ($response->successful()) {
+                        $savedCount++;
+                        $success = true;
+
+                        Log::info('Пользователь успешно создан', [
+                            'email' => $payload['email'],
+                            'user_id' => $user->id_table_for_migrations,
+                        ]);
+
+                        $user->update(['is_send' => SendEnum::SEND]);
+                    } else {
+                        Log::error('Ошибка при создании пользователя', [
+                            'email' => $payload['email'],
+                            'user_id' => $user->id_table_for_migrations,
+                            'status' => $response->status(),
+                            'body' => $response->json(),
+                            'attempt' => $attempts,
+                        ]);
+                        sleep(1);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('HTTP-ошибка при создании пользователя', [
+                        'email' => $payload['email'],
+                        'user_id' => $user->id_table_for_migrations,
+                        'attempt' => $attempts,
+                        'error' => $e->getMessage(),
+                    ]);
+                    sleep(1);
+                }
             }
 
-            $response = Http::HelpDesk()->post('users/', $payload);
-            $requestCount++;
-
-            if ($response->successful()) {
-                $savedCount++;
-                Log::info("Пользователь {$payload['email']} создан");
-            } else {
-                Log::error("Ошибка создания пользователя {$payload['email']}: " . $response->body());
+            if (!$success) {
+                Log::warning('Не удалось создать пользователя после всех попыток', [
+                    'email' => $payload['email'],
+                    'user_id' => $user->id_table_for_migrations,
+                    'attempts' => $maxAttempts,
+                ]);
             }
-
-            // Лимит 300 запросов в минуту
-            $this->applyRateLimit($requestCount, $startTime);
         }
 
         return [
@@ -168,64 +201,87 @@ class ApiHelpDeskUploadService
     }
 
     /**
-     * Загружает комментарии из БД в CRM
-     *
-     * @param int|null $fromId
-     * @param int|null $toId
+     * Загружает комментарии
      */
     public function uploadComments(?int $fromId = null, ?int $toId = null): array
     {
         $savedCount = 0;
-        $requestCount = 0;
-        $startTime = microtime(true);
 
         $comments = TableForMigration::query()
-            ->where('source', TableSourceEnum::COMMENTS);
-
-        if ($fromId !== null) {
-            $comments->where('id_table_for_migrations', '>=', $fromId);
-        }
-
-        if ($toId !== null) {
-            $comments->where('id_table_for_migrations', '<=', $toId);
-        }
-
-        $comments = $comments->get();
+            ->where('source', TableSourceEnum::COMMENTS)
+            ->where('is_send', SendEnum::NOT_SEND)
+            ->when($fromId !== null, fn($q) => $q->where('id_table_for_migrations', '>=', $fromId))
+            ->when($toId !== null, fn($q) => $q->where('id_table_for_migrations', '<=', $toId))
+            ->get();
 
         foreach ($comments as $comment) {
             $data = $comment->json_data;
 
             if (!isset($data['ticket_id'], $data['text'])) {
-                Log::warning("Пропущен комментарий с ID {$comment->id_table_for_migrations} — нет ticket_id или text");
+                Log::warning('Пропущен комментарий без обязательных полей', [
+                    'comment_id' => $comment->id_table_for_migrations,
+                ]);
                 continue;
             }
 
-            $payload = [
-                'text' => $data['text'],
-            ];
+            $payload = ['text' => $data['text']];
 
-            if (isset($data['user_id']) && $data['user_id'] !== -1) {
+            if (!empty($data['user_id']) && $data['user_id'] !== -1) {
                 $payload['user_id'] = $data['user_id'];
             }
 
             if (!empty($data['files'])) {
-                $payload['files'] = $data['files']; // Важно: нужно использовать multipart/form-data, если есть файлы
+                $payload['files'] = $data['files'];
             }
 
-            $ticketId = $data['ticket_id'];
+            $attempts = 0;
+            $maxAttempts = 5;
+            $success = false;
 
-            $response = Http::HelpDesk()->post("tickets/{$ticketId}/comments/", $payload);
-            $requestCount++;
+            while (!$success && $attempts < $maxAttempts) {
+                $attempts++;
 
-            if ($response->successful()) {
-                $savedCount++;
-                Log::info("Комментарий к тикету {$ticketId} создан");
-            } else {
-                Log::error("Ошибка создания комментария к тикету {$ticketId}: " . $response->body());
+                try {
+                    $response = Http::HelpDeskEgor()->post("tickets/{$data['ticket_id']}/comments/", $payload);
+
+                    if ($response->successful()) {
+                        $savedCount++;
+                        $success = true;
+
+                        Log::info('Комментарий успешно создан', [
+                            'comment_id' => $comment->id_table_for_migrations,
+                            'ticket_id' => $data['ticket_id'],
+                        ]);
+
+                        $comment->update(['is_send' => SendEnum::SEND]);
+                    } else {
+                        Log::error('Ошибка создания комментария', [
+                            'comment_id' => $comment->id_table_for_migrations,
+                            'ticket_id' => $data['ticket_id'],
+                            'status' => $response->status(),
+                            'body' => $response->json(),
+                            'attempt' => $attempts,
+                        ]);
+                        sleep(1);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('HTTP-ошибка при создании комментария', [
+                        'comment_id' => $comment->id_table_for_migrations,
+                        'ticket_id' => $data['ticket_id'],
+                        'attempt' => $attempts,
+                        'error' => $e->getMessage(),
+                    ]);
+                    sleep(1);
+                }
             }
 
-            // Лимит 300 запросов в минуту
-            $this->applyRateLimit($requestCount, $startTime);
+            if (!$success) {
+                Log::warning('Не удалось создать комментарий после всех попыток', [
+                    'comment_id' => $comment->id_table_for_migrations,
+                    'ticket_id' => $data['ticket_id'],
+                    'attempts' => $maxAttempts,
+                ]);
+            }
         }
 
         return [
@@ -234,66 +290,93 @@ class ApiHelpDeskUploadService
         ];
     }
 
+
     /**
-     * Загружает ответы из БД в CRM
-     *
-     * @param int|null $fromId
-     * @param int|null $toId
+     * Загружает ответы
      */
     public function uploadAnswers(?int $fromId = null, ?int $toId = null): array
     {
         $savedCount = 0;
-        $requestCount = 0;
-        $startTime = microtime(true);
+        $maxTextLength = 15000;
 
         $answers = TableForMigration::query()
-            ->where('source', TableSourceEnum::ANSWER);
-
-        if ($fromId !== null) {
-            $answers->where('id_table_for_migrations', '>=', $fromId);
-        }
-
-        if ($toId !== null) {
-            $answers->where('id_table_for_migrations', '<=', $toId);
-        }
-
-        $answers = $answers->get();
-
-        $maxTextLength = 15000; // безопасная длина текста за один POST
+            ->where('source', TableSourceEnum::ANSWER)
+            ->where('is_send', SendEnum::NOT_SEND)
+            ->when($fromId !== null, fn($q) => $q->where('id_table_for_migrations', '>=', $fromId))
+            ->when($toId !== null, fn($q) => $q->where('id_table_for_migrations', '<=', $toId))
+            ->get();
 
         foreach ($answers as $answer) {
             $data = $answer->json_data;
 
             if (!isset($data['ticket_id'], $data['text'])) {
-                Log::warning("Пропущен ответ ID {$answer->id_table_for_migrations} — нет ticket_id или текста");
+                Log::warning('Пропущен ответ без обязательных полей', [
+                    'answer_id' => $answer->id_table_for_migrations,
+                ]);
                 continue;
             }
 
             $ticketId = $data['ticket_id'];
             $userId = $data['user_id'] ?? null;
-            $text = $data['text'];
+            $parts = mb_str_split($data['text'], $maxTextLength);
 
-            // Разбиваем текст на части
-            $parts = mb_str_split($text, $maxTextLength);
+            $attempts = 0;
+            $maxAttempts = 5;
+            $success = false;
 
-            foreach ($parts as $part) {
-                $payload = ['text' => $part];
-                if ($userId !== null && $userId !== -1) {
-                    $payload['user_id'] = $userId;
-                }
+            while (!$success && $attempts < $maxAttempts) {
+                $attempts++;
 
-                $response = Http::HelpDesk()->post("tickets/{$ticketId}/posts/", $payload);
-                $requestCount++;
+                try {
+                    foreach ($parts as $index => $part) {
+                        $payload = ['text' => $part];
 
-                if ($response->successful()) {
+                        if ($userId !== null && $userId !== -1) {
+                            $payload['user_id'] = $userId;
+                        }
+
+                        $response = Http::HelpDeskEgor()->post("tickets/{$ticketId}/posts/", $payload);
+
+                        if ($response->failed()) {
+                            Log::error('Ошибка при загрузке ответа', [
+                                'answer_id' => $answer->id_table_for_migrations,
+                                'ticket_id' => $ticketId,
+                                'part' => $index + 1,
+                                'status' => $response->status(),
+                                'body' => $response->json(),
+                                'attempt' => $attempts,
+                            ]);
+                            throw new \Exception("Ошибка загрузки части ответа");
+                        }
+                    }
+
+                    // если все части успешно загрузились
                     $savedCount++;
-                    Log::info("Ответ к тикету {$ticketId} загружен");
-                } else {
-                    Log::error("Ошибка загрузки ответа к тикету {$ticketId}: " . $response->body());
-                }
+                    $success = true;
 
-                // Лимит 300 запросов в минуту
-                $this->applyRateLimit($requestCount, $startTime);
+                    Log::info('Ответ успешно загружен', [
+                        'answer_id' => $answer->id_table_for_migrations,
+                        'ticket_id' => $ticketId,
+                    ]);
+
+                    $answer->update(['is_send' => SendEnum::SEND]);
+                } catch (\Throwable $e) {
+                    Log::error('HTTP-ошибка при загрузке ответа', [
+                        'answer_id' => $answer->id_table_for_migrations,
+                        'ticket_id' => $ticketId,
+                        'attempt' => $attempts,
+                        'error' => $e->getMessage(),
+                    ]);
+                    sleep(1);
+                }
+            }
+
+            if (!$success) {
+                Log::warning('Не удалось загрузить ответ после всех попыток', [
+                    'answer_id' => $answer->id_table_for_migrations,
+                    'ticket_id' => $ticketId,
+                    'attempts' => $maxAttempts,
+                ]);
             }
         }
 
@@ -302,5 +385,4 @@ class ApiHelpDeskUploadService
             'message' => "Загружено {$savedCount} ответов",
         ];
     }
-
 }

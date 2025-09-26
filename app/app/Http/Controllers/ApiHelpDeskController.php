@@ -36,6 +36,12 @@ class ApiHelpDeskController extends Controller
     {
         return $this->service->getComments();
     }
+
+    public function getDepartments()
+    {
+        return $this->service->getDepartments();
+    }
+
     //TODO: удалить потом
     public function fillableIds()
     {

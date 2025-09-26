@@ -38,6 +38,8 @@ return [
     'help_desk' => [
         'api_key' => env('HELP_DESK_KEY'),
         'domain' => env('HELP_DESK_DOMAIN'),
+        'api_key_egor' => env('HELP_DESK_API_KEY_EGOR'),
+        'domain_egor' => env('HELP_DESK_DOMAIN_EGOR'),
     ]
 
 ];

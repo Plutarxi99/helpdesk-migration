@@ -12,12 +12,12 @@ class ApiHelpDeskUploadController extends Controller
 
     public function uploadRequests()
     {
-        $this->service->uploadRequests(1, 100);
+        $this->service->uploadRequests(1, 5);
     }
 
     public function uploadContacts()
     {
-        $this->service->uploadContacts(1, 100);
+        $this->service->uploadContacts(1100, 2093);
     }
 
     public function uploadComments()

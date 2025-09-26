@@ -8,4 +8,5 @@ enum TableSourceEnum:int
     case CONTACTS = 2;
     case ANSWER = 3;
     case COMMENTS = 4;
+    case DEPARTMENTS = 5;
 }

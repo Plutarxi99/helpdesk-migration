@@ -260,4 +260,21 @@ class ApiHelpDeskService
             'message' => "Saved {$saved_count} answers",
         ];
     }
+
+    public function getDepartments(): array
+    {
+    $saved_count = 0;
+
+        $response = Http::HelpDesk()->get('departments/')->json();
+
+        foreach ($response['data'] as $request) {
+            $this->repository->saveDepartments($request);
+            $saved_count++;
+        }
+
+        return [
+            'success' => true,
+            'saved_requests' => $saved_count
+        ];
+    }
 }

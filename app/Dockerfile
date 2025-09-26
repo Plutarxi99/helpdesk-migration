@@ -17,8 +17,13 @@ RUN apk add \
     make \
     g++ \
     envsubst \
+    redis \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo_mysql gd zip intl
+
+# Устанавливаем redis расширение для PHP
+RUN pecl install redis \
+    && docker-php-ext-enable redis
 
 # Composer внутрь контейнера
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

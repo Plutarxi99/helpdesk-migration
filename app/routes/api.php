@@ -13,6 +13,7 @@ Route::middleware('api')
                 Route::get('/contacts', 'getContacts');
                 Route::get('/answers', 'getAnswers');
                 Route::get('/comments', 'getComments');
+                Route::get('/departments', 'getDepartments');
             }
         );
         Route::prefix('help-desk-uploads')->controller(ApiHelpDeskUploadController::class)->group(
