@@ -67,4 +67,30 @@ class ApiHelpDeskRepository
             ]
         );
     }
+
+    public function saveCustomFields($request): void
+    {
+        TableForMigration::query()->firstOrCreate(
+            [
+                'source' => TableSourceEnum::CUSTOM_FIELDS,
+                'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
+            ]
+        );
+    }
+
+    public function saveCustomFieldOption($request): void
+    {
+        TableForMigration::query()->firstOrCreate(
+            [
+                'source' => TableSourceEnum::CUSTOM_FIELD_OPTIONS,
+                'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
+            ]
+        );
+    }
 }

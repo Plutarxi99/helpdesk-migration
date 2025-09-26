@@ -24,14 +24,7 @@ class ApiHelpDeskUploadService
     {
         $savedCount = 0;
 
-        $requests = TableForMigration::query()
-            ->where('source', TableSourceEnum::REQUEST)
-            ->where('is_send', SendEnum::NOT_SEND)
-            ->when($fromId !== null, fn($q) => $q->where('id_table_for_migrations', '>=', $fromId))
-            ->when($toId !== null, fn($q) => $q->where('id_table_for_migrations', '<=', $toId))
-            ->get();
-
-        foreach ($requests as $request) {
+        foreach (TableForMigration::getNotSend(TableSourceEnum::REQUEST, $fromId, $toId) as $request) {
             $data = $request->json_data;
 
             $payload = [
@@ -44,7 +37,7 @@ class ApiHelpDeskUploadService
                 'owner_id' => $data['owner_id'] ?? 0,
                 'user_id' => $data['user_id'] ?? null,
                 'user_email' => $data['user_email'] ?? null,
-                'custom_fields' => $data['custom_fields'] ?? [],
+//                'custom_fields' => $data['custom_fields'] ?? [],
                 'tags' => $data['tags'] ?? [],
             ];
 
@@ -61,36 +54,43 @@ class ApiHelpDeskUploadService
                     if ($response->successful()) {
                         $savedCount++;
                         $success = true;
+                        $request->update(
+                            [
+                                'is_send' => SendEnum::SEND,
+                                'error_message' => null
+                            ]
+                        );
 
-                        Log::info('Заявка успешно загружена', [
-                            'request_id' => $request->id_table_for_migrations,
-                        ]);
-
-                        $request->update(['is_send' => SendEnum::SEND]);
+                        Log::info('Заявка успешно загружена', ['request_id' => $request->id_table_for_migrations]);
                     } else {
-                        Log::error('Ошибка при загрузке заявки', [
-                            'request_id' => $request->id_table_for_migrations,
-                            'status' => $response->status(),
-                            'body' => $response->json(),
-                            'attempt' => $attempts,
-                        ]);
+                        $request->update(
+                            [
+                                'error_message' => json_encode($response->json())
+                            ]
+                        );
+                        Log::error('Ошибка при загрузке заявки',
+                            [
+                                'request_id' => $request->id_table_for_migrations,
+                                'status' => $response->status(),
+                                'attempt' => $attempts
+                            ]
+                        );
                         sleep(1);
                     }
                 } catch (\Throwable $e) {
-                    Log::error('HTTP-ошибка при загрузке заявки', [
-                        'request_id' => $request->id_table_for_migrations,
-                        'attempt' => $attempts,
-                        'error' => $e->getMessage(),
-                    ]);
+                    $request->update(
+                        [
+                            'error_message' => $e->getMessage()
+                        ]
+                    );
+                    Log::error('HTTP-ошибка при загрузке заявки',
+                        [
+                            'request_id' => $request->id_table_for_migrations,
+                            'attempt' => $attempts
+                        ]
+                    );
                     sleep(1);
                 }
-            }
-
-            if (!$success) {
-                Log::warning('Не удалось загрузить заявку после всех попыток', [
-                    'request_id' => $request->id_table_for_migrations,
-                    'attempts' => $maxAttempts,
-                ]);
             }
         }
 
@@ -108,20 +108,12 @@ class ApiHelpDeskUploadService
     {
         $savedCount = 0;
 
-        $users = TableForMigration::query()
-            ->where('source', TableSourceEnum::CONTACTS)
-            ->where('is_send', SendEnum::NOT_SEND)
-            ->when($fromId !== null, fn($q) => $q->where('id_table_for_migrations', '>=', $fromId))
-            ->when($toId !== null, fn($q) => $q->where('id_table_for_migrations', '<=', $toId))
-            ->get();
+        foreach (TableForMigration::getNotSend(TableSourceEnum::CONTACTS, $fromId, $toId) as $user) {
 
-        foreach ($users as $user) {
             $data = $user->json_data;
 
             if (empty($data['email'])) {
-                Log::warning('Пропущен пользователь без email', [
-                    'user_id' => $user->id_table_for_migrations,
-                ]);
+                Log::warning('Пропущен пользователь без email', ['user_id' => $user->id_table_for_migrations]);
                 continue;
             }
 
@@ -133,7 +125,7 @@ class ApiHelpDeskUploadService
                 'phone' => $data['phone'] ?? '',
                 'website' => $data['website'] ?? '',
                 'organization' => $data['organization']['name'] ?? null,
-                'organiz_id' => $data['organization']['id'] ?? null,
+                'organiz_id' => $data['organization']['id'] ?? 1,
                 'status' => $data['status'] ?? 'active',
                 'language' => $data['language'] ?? 'ru',
                 'notifications' => $data['notifications'] ?? 0,
@@ -145,7 +137,7 @@ class ApiHelpDeskUploadService
             ];
 
             $attempts = 0;
-            $maxAttempts = 5;
+            $maxAttempts = 2;
             $success = false;
 
             while (!$success && $attempts < $maxAttempts) {
@@ -157,40 +149,38 @@ class ApiHelpDeskUploadService
                     if ($response->successful()) {
                         $savedCount++;
                         $success = true;
+                        $user->update([
+                            'is_send' => SendEnum::SEND,
+                            'error_message' => null
+                        ]);
 
                         Log::info('Пользователь успешно создан', [
                             'email' => $payload['email'],
-                            'user_id' => $user->id_table_for_migrations,
+                            'user_id' => $user->id_table_for_migrations
                         ]);
-
-                        $user->update(['is_send' => SendEnum::SEND]);
                     } else {
+                        $user->update([
+                            'error_message' => json_encode($response->json())
+                        ]);
                         Log::error('Ошибка при создании пользователя', [
                             'email' => $payload['email'],
                             'user_id' => $user->id_table_for_migrations,
                             'status' => $response->status(),
-                            'body' => $response->json(),
-                            'attempt' => $attempts,
+                            'attempt' => $attempts
                         ]);
                         sleep(1);
                     }
                 } catch (\Throwable $e) {
+                    $user->update([
+                        'error_message' => $e->getMessage()
+                    ]);
                     Log::error('HTTP-ошибка при создании пользователя', [
                         'email' => $payload['email'],
                         'user_id' => $user->id_table_for_migrations,
-                        'attempt' => $attempts,
-                        'error' => $e->getMessage(),
+                        'attempt' => $attempts
                     ]);
                     sleep(1);
                 }
-            }
-
-            if (!$success) {
-                Log::warning('Не удалось создать пользователя после всех попыток', [
-                    'email' => $payload['email'],
-                    'user_id' => $user->id_table_for_migrations,
-                    'attempts' => $maxAttempts,
-                ]);
             }
         }
 

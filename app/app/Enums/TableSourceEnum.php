@@ -9,4 +9,6 @@ enum TableSourceEnum:int
     case ANSWER = 3;
     case COMMENTS = 4;
     case DEPARTMENTS = 5;
+    case CUSTOM_FIELDS = 6;
+    case CUSTOM_FIELD_OPTIONS = 7;
 }

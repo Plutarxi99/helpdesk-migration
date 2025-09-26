@@ -42,6 +42,16 @@ class ApiHelpDeskController extends Controller
         return $this->service->getDepartments();
     }
 
+    public function getCustomFields()
+    {
+        return $this->service->getCustomFields();
+    }
+
+    public function getCustomFieldOptions()
+    {
+        return $this->service->getCustomFieldOptions();
+    }
+
     //TODO: удалить потом
     public function fillableIds()
     {

@@ -263,7 +263,7 @@ class ApiHelpDeskService
 
     public function getDepartments(): array
     {
-    $saved_count = 0;
+        $saved_count = 0;
 
         $response = Http::HelpDesk()->get('departments/')->json();
 
@@ -275,6 +275,90 @@ class ApiHelpDeskService
         return [
             'success' => true,
             'saved_requests' => $saved_count
+        ];
+    }
+
+    public function getCustomFields(): array
+    {
+        $saved_count = 0;
+
+        $response = Http::HelpDesk()->get('custom_fields/')->json();
+
+        $total_pages = $response['pagination']['total_pages'];
+
+        foreach ($response['data'] as $request) {
+            $this->repository->saveCustomFields($request);
+            $saved_count++;
+        }
+
+        \Log::info("Будет загружено страниц {$total_pages}.");
+
+        for ($page = 2; $page <= $total_pages; $page++) {
+            $response = Http::HelpDesk()->get('custom_fields/',
+                [
+                    'page' => $page
+                ]
+            );
+
+            if (!$response->successful()) {
+                \Log::error("Failed to fetch page {$page}");
+                continue;
+            }
+
+            foreach ($response['data'] as $request) {
+                $this->repository->saveCustomFields($request);
+                $saved_count++;
+            }
+        }
+
+        return [
+            'success' => true,
+            'message' => "Successfully processed {$total_pages} pages",
+            'total_pages' => $total_pages,
+            'saved_requests' => $saved_count
+        ];
+    }
+
+    public function getCustomFieldOptions(): array
+    {
+        $saved_count = 0;
+
+        // Берём все кастомные поля из таблицы миграции
+        $fields = TableForMigration::query()
+            ->where('source', TableSourceEnum::CUSTOM_FIELDS)
+            ->get();
+
+
+        foreach ($fields as $field) {
+            $fieldId = $field->json_data['id'];
+
+            $page = 1;
+            $total_pages = 1;
+
+            do {
+                $response = Http::HelpDesk()->get("custom_fields/{$fieldId}/options/", [
+                    'page' => $page
+                ])->json();
+
+                if (!isset($response['data'])) {
+                    \Log::error("No data for field {$fieldId} page {$page}");
+                    break;
+                }
+
+                foreach ($response['data'] as $option) {
+                    $this->repository->saveCustomFieldOption($option);
+                    $saved_count++;
+                }
+
+                $total_pages = $response['pagination']['total_pages'] ?? 1;
+                $page++;
+            } while ($page <= $total_pages);
+        }
+
+        return [
+            'success' => true,
+            'message' => "Processed options for {$fields->count()} fields",
+            'saved_options' => $saved_count
         ];
     }
 }

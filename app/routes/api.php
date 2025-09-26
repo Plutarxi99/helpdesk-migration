@@ -14,6 +14,8 @@ Route::middleware('api')
                 Route::get('/answers', 'getAnswers');
                 Route::get('/comments', 'getComments');
                 Route::get('/departments', 'getDepartments');
+                Route::get('/custom-fields', 'getCustomFields');
+                Route::get('/custom-fields-option', 'getCustomFieldOptions');
             }
         );
         Route::prefix('help-desk-uploads')->controller(ApiHelpDeskUploadController::class)->group(
