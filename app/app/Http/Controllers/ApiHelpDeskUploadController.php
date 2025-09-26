@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ApiHelpDeskUploadService;
+use Exception;
 
 class ApiHelpDeskUploadController extends Controller
 {
@@ -10,23 +11,46 @@ class ApiHelpDeskUploadController extends Controller
         protected readonly ApiHelpDeskUploadService $service
     ) {}
 
-    public function uploadRequests()
+    /**
+     * Загрузка Заявок
+     *
+     * @return array
+     * @throws Exception
+     */
+    public function uploadRequests(): array
     {
-        $this->service->uploadRequests(1, 1000);
+        return $this->service->uploadRequests(1, 1000);
     }
 
-    public function uploadContacts()
+    /**
+     * Загрузка контактов
+     *
+     * @return array
+     * @throws Exception
+     */
+    public function uploadContacts(): array
     {
-        $this->service->uploadContacts(1, 20100);
+        return $this->service->uploadContacts(1, 20100);
     }
 
-    public function uploadComments()
+    /**
+     * Закгрузка комментариев
+     *
+     * @return array
+     * @throws Exception
+     */
+    public function uploadComments(): array
     {
-        $this->service->uploadComments(1, 100);
+        return $this->service->uploadComments(1, 100);
     }
 
-    public function uploadAnswers()
+    /**
+     * Загрузка Ответов
+     *
+     * @return array
+     */
+    public function uploadAnswers(): array
     {
-        $this->service->uploadAnswers(1, 100);
+        return $this->service->uploadAnswers(1, 100);
     }
 }

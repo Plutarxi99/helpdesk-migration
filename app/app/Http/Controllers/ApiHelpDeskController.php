@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\ApiHelpDeskService;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 
 class ApiHelpDeskController extends Controller
 {
@@ -12,65 +10,73 @@ class ApiHelpDeskController extends Controller
         protected readonly ApiHelpDeskService $service
     ) {}
 
-    public function getHelpDesks()
-    {
-        return Http::HelpDesk()->get('departments/')->json();
-    }
-
+    /**
+     * Получение заявок
+     *
+     * @return array
+     */
     public function getRequests()
     {
         return $this->service->getRequests();
     }
 
+    /**
+     * Получение контактов
+     *
+     * @return array
+     */
     public function getContacts()
     {
         return $this->service->getContacts();
     }
 
+    /**
+     * Получение ответов и сохранение
+     *
+     * @return array
+     */
     public function getAnswers()
     {
         return $this->service->getAnswers();
     }
 
+    /**
+     * Получение комментариев
+     *
+     * @return array
+     */
     public function getComments()
     {
         return $this->service->getComments();
     }
 
+    /**
+     * Получение департаментов
+     *
+     * @return array
+     */
     public function getDepartments()
     {
         return $this->service->getDepartments();
     }
 
+    /**
+     * Получение кастомных полей
+     *
+     * @return array
+     */
     public function getCustomFields()
     {
         return $this->service->getCustomFields();
     }
 
+    /**
+     * Получение кастомных полей
+     *
+     * @return array
+     */
     public function getCustomFieldOptions()
     {
         return $this->service->getCustomFieldOptions();
-    }
-
-    //TODO: удалить потом
-    public function fillableIds()
-    {
-        // получаем все строки
-        $rows = DB::table('table_for_migrations')->get();
-
-        foreach ($rows as $row) {
-            // json_decode превращает text в массив
-            $data = json_decode($row->json_data, true);
-
-            if (json_last_error() === JSON_ERROR_NONE && isset($data['id'])) {
-                DB::table('table_for_migrations')
-                    ->where('id', $row->id)
-                    ->update([
-                        'id_table_for_migrations' => $data['id'],
-                    ]);
-            }
-        }
-
-        return response()->json(['status' => 'ok']);
     }
 }
