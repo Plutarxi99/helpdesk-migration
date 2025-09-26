@@ -23,6 +23,6 @@ class TableForMigration extends Model
     protected $fillable = [
         'source',
         'json_data',
-        'unique_id',
+        'id_table_for_migrations',
     ];
 }

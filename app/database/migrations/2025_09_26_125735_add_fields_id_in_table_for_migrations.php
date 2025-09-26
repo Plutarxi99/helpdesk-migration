@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('table_for_migrations', function (Blueprint $table) {
-            $table->uuid('unique_id')->nullable()->after('id');
+            $table->bigInteger('id_table_for_migrations')->nullable()->after('id');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('table_for_migrations', function (Blueprint $table) {
-            $table->dropColumn('unique_id');
+            $table->dropColumn('id_table_for_migrations');
         });
     }
 };

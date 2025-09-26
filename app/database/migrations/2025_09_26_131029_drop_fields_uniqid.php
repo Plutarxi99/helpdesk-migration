@@ -6,23 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('table_for_migrations', function (Blueprint $table) {
-            $table->uuid('unique_id')->nullable()->after('id');
+            $table->dropColumn('unique_id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('table_for_migrations', function (Blueprint $table) {
-            $table->dropColumn('unique_id');
+            $table->char('unique_id', 36)->nullable();
         });
     }
 };

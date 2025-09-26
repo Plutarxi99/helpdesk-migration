@@ -13,7 +13,7 @@ class ApiHelpDeskRepository
             [
                 'source' => TableSourceEnum::REQUEST,
                 'json_data' => $request,
-                'unique_id' => $request['unique_id'],
+                'id_table_for_migrations' => $request['id'],
             ]
         );
     }
@@ -24,7 +24,33 @@ class ApiHelpDeskRepository
             [
                 'source' => TableSourceEnum::CONTACTS,
                 'json_data' => $request,
-                'unique_id' => $request['id'],
+                'id_table_for_migrations' => $request['id'],
+            ]
+        );
+    }
+
+    public function saveAnswer($request): void
+    {
+        TableForMigration::query()->firstOrCreate(
+            [
+                'source' => TableSourceEnum::ANSWER,
+                'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
+            ]
+        );
+    }
+
+    public function saveComment($request): void
+    {
+        TableForMigration::query()->firstOrCreate(
+            [
+                'source' => TableSourceEnum::COMMENTS,
+                'id_table_for_migrations' => $request['id'],
+            ],
+            [
+                'json_data' => $request,
             ]
         );
     }
