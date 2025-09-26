@@ -9,6 +9,7 @@ use App\Repository\ApiHelpDeskUploadResource;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ApiHelpDeskUploadService
 {
@@ -59,7 +60,7 @@ class ApiHelpDeskUploadService
      * Загружает комментарии
      *
      * @param null|int $from_id ID от какого заполнять
-     * @param null|int $to_id ID до какого вставлять
+     * @param null|int $to_id   ID до какого вставлять
      *
      * @return array
      * @throws Exception
@@ -134,7 +135,13 @@ class ApiHelpDeskUploadService
                     return true;
                 } else {
                     $item->update(['error_message' => json_encode($response->json())]);
-                    Log::error("Ошибка при загрузке", ['id' => $item->id_table_for_migrations, 'attempt' => $attempts]);
+                    Log::error(
+                        "Ошибка при загрузке",
+                        [
+                            'id' => $item->id_table_for_migrations,
+                            'attempt' => $attempts
+                        ]
+                    );
                 }
             } catch (\Throwable $e) {
                 $item->update(['error_message' => $e->getMessage()]);
@@ -200,19 +207,28 @@ class ApiHelpDeskUploadService
             try {
                 foreach ($text_parts as $index => $part) {
                     $payload = ['text' => $part, 'user_id' => $user_id];
-                    $response = Http::HelpDeskEgor()->post("tickets/{$ticket_id}/posts/", $payload);
+                    $response = Http::HelpDeskEgor()->post("tickets/$ticket_id/posts/", $payload);
 
                     if ($response->failed()) {
-                        throw new \Exception("Ошибка загрузки части ответа");
+                        $answer->update(['error_message' => json_encode($response->json())]);
+                        throw new Exception("Ошибка загрузки части ответа");
                     }
                 }
 
-                $answer->update(['is_send' => SendEnum::SEND]);
+                $answer->update(['is_send' => SendEnum::SEND, 'error_message' => null]);
                 Log::info('Ответ успешно загружен', ['id' => $answer->id_table_for_migrations]);
                 return true;
 
-            } catch (\Throwable $e) {
-                Log::error('Ошибка при загрузке ответа', ['id' => $answer->id_table_for_migrations, 'attempt' => $attempts]);
+            } catch (Throwable $e) {
+                $answer->update(['error_message' => $e->getMessage()]);
+                Log::error(
+                    'Ошибка при загрузке ответа',
+                    [
+                        'id' => $answer->id_table_for_migrations,
+                        'attempt' => $attempts,
+                        'error_message' => $e->getMessage(),
+                    ]
+                );
                 sleep(1);
             }
         }
