@@ -104,22 +104,6 @@
 					"response": []
 				}
 			]
-		},
-		{
-			"name": "test",
-			"request": {
-				"method": "GET",
-				"header": []
-			},
-			"response": []
-		},
-		{
-			"name": "test",
-			"request": {
-				"method": "GET",
-				"header": []
-			},
-			"response": []
 		}
 	],
 	"variable": [
