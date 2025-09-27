@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Enums\SendEnum;
 use App\Enums\TableSourceEnum;
+use App\Jobs\UploadAnswerJob;
+use App\Jobs\UploadCommentJob;
+use App\Jobs\UploadItemJob;
 use App\Models\TableForMigration;
 use App\Repository\ApiHelpDeskUploadResource;
 use Exception;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class ApiHelpDeskUploadService
 {
@@ -67,19 +66,17 @@ class ApiHelpDeskUploadService
      */
     public function uploadComments(?int $from_id = null, ?int $to_id = null): array
     {
-        $saved_count = 0;
+        $count = 0;
 
         foreach (TableForMigration::getNotSend(TableSourceEnum::COMMENTS, $from_id, $to_id) as $comment) {
             $data = $comment->json_data;
             $ticket_id = $this->repository->mapTicketId($data['ticket_id']);
-            $payload = $this->repository->mappingPayload(TableSourceEnum::COMMENTS, $data);
 
-            if ($this->sendRequest("tickets/{$ticket_id}/comments/", $payload, $comment)) {
-                $saved_count++;
-            }
+            UploadCommentJob::dispatch($comment, $ticket_id);
+            $count++;
         }
 
-        return $this->result("Создано {$saved_count} комментариев", $saved_count);
+        return $this->result("Поставлено в очередь {$count} комментариев", $count);
     }
 
     /**
@@ -92,7 +89,7 @@ class ApiHelpDeskUploadService
      */
     public function uploadAnswers(?int $from_id = null, ?int $to_id = null): array
     {
-        $saved_count = 0;
+        $count = 0;
         $maxTextLength = 15000;
 
         foreach (TableForMigration::getNotSend(TableSourceEnum::ANSWER, $from_id, $to_id) as $answer) {
@@ -101,70 +98,23 @@ class ApiHelpDeskUploadService
             $user_id = $this->repository->mapUserId($data['user_id'] ?? null);
             $text_parts = mb_str_split($data['text'], $maxTextLength);
 
-            if ($this->sendAnswerParts($ticket_id, $user_id, $text_parts, $answer)) {
-                $saved_count++;
-            }
+            UploadAnswerJob::dispatch($answer, $ticket_id, $user_id, $text_parts);
+            $count++;
         }
 
-        return $this->result("Загружено $saved_count ответов", $saved_count);
+        return $this->result("Поставлено в очередь {$count} ответов", $count);
     }
 
     /**
-     * Отправка запроса с повторными попытками
+     * Запуск одного элемента на отправку
      *
-     * @param string            $endpoint URL
-     * @param array             $payload  Данные для загрузки
-     * @param TableForMigration $item     Объекта класса
-     *
-     * @return bool
-     */
-    private function sendRequest(string $endpoint, array $payload, TableForMigration $item): bool
-    {
-        $attempts = 0;
-        $max_attempts = 2;
-
-        while ($attempts < $max_attempts) {
-            $attempts++;
-
-            try {
-                $response = Http::HelpDeskEgor()->post($endpoint, $payload);
-
-                if ($response->successful()) {
-                    $item->update(['is_send' => SendEnum::SEND, 'error_message' => null]);
-                    Log::info("Успешно загружен элемент", ['id' => $item->id_table_for_migrations]);
-                    return true;
-                } else {
-                    $item->update(['error_message' => json_encode($response->json())]);
-                    Log::error(
-                        "Ошибка при загрузке",
-                        [
-                            'id' => $item->id_table_for_migrations,
-                            'attempt' => $attempts
-                        ]
-                    );
-                }
-            } catch (\Throwable $e) {
-                $item->update(['error_message' => $e->getMessage()]);
-                Log::error("HTTP-ошибка", ['id' => $item->id_table_for_migrations, 'attempt' => $attempts]);
-            }
-
-            sleep(1);
-        }
-
-        return false;
-    }
-
-    /**
-     * Общий метод для загрузки простых элементов
-     *
-     * @param TableSourceEnum $source   Источник таблицы
+     * @param TableSourceEnum $source   Источник
      * @param string          $endpoint URL
      * @param string          $typeName Тип
-     * @param null|int        $from_id  От какого ID заполнять
-     * @param null|int        $to_id    До какого ID заполнять
+     * @param int|null        $from_id  ID от чего
+     * @param int|null        $to_id    ID до куда
      *
      * @return array
-     * @throws Exception
      */
     private function uploadItems(
         TableSourceEnum $source,
@@ -173,67 +123,14 @@ class ApiHelpDeskUploadService
         ?int $from_id,
         ?int $to_id
     ): array {
-        $saved_count = 0;
+        $items = TableForMigration::getNotSend($source, $from_id, $to_id);
+        $count = $items->count();
 
-        foreach (TableForMigration::getNotSend($source, $from_id, $to_id) as $item) {
-            $payload = $this->repository->mappingPayload($source, $item->json_data);
-
-            if ($this->sendRequest($endpoint, $payload, $item)) {
-                $saved_count++;
-            }
+        foreach ($items as $item) {
+            UploadItemJob::dispatch($item, $source, $endpoint);
         }
 
-        return $this->result("Загружено {$saved_count} {$typeName}", $saved_count);
-    }
-
-    /**
-     * Отправка частей ответа
-     * 
-     * @param int               $ticket_id  ID заявки
-     * @param int               $user_id    ID пользователя
-     * @param array             $text_parts Часть текста
-     * @param TableForMigration $answer     Ответ
-     * 
-     * @return bool
-     */
-    private function sendAnswerParts(int $ticket_id, int $user_id, array $text_parts, TableForMigration $answer): bool
-    {
-        $attempts = 0;
-        $max_attempts = 2;
-
-        while ($attempts < $max_attempts) {
-            $attempts++;
-
-            try {
-                foreach ($text_parts as $index => $part) {
-                    $payload = ['text' => $part, 'user_id' => $user_id];
-                    $response = Http::HelpDeskEgor()->post("tickets/$ticket_id/posts/", $payload);
-
-                    if ($response->failed()) {
-                        $answer->update(['error_message' => json_encode($response->json())]);
-                        throw new Exception("Ошибка загрузки части ответа");
-                    }
-                }
-
-                $answer->update(['is_send' => SendEnum::SEND, 'error_message' => null]);
-                Log::info('Ответ успешно загружен', ['id' => $answer->id_table_for_migrations]);
-                return true;
-
-            } catch (Throwable $e) {
-                $answer->update(['error_message' => $e->getMessage()]);
-                Log::error(
-                    'Ошибка при загрузке ответа',
-                    [
-                        'id' => $answer->id_table_for_migrations,
-                        'attempt' => $attempts,
-                        'error_message' => $e->getMessage(),
-                    ]
-                );
-                sleep(1);
-            }
-        }
-
-        return false;
+        return $this->result("Поставлено в очередь {$count} {$typeName}", $count);
     }
 
     /**
@@ -249,7 +146,7 @@ class ApiHelpDeskUploadService
         return [
             'success' => true,
             'message' => $message,
-            'saved_count' => $count
+            'queued_count' => $count
         ];
     }
 }

@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * @property int $id_table_for_migrations
+ * @property int  $id_table_for_migrations
+ * @property array $json_data
+ *
  * @method static Builder<static>|TableForMigration query()
  */
 class TableForMigration extends Model

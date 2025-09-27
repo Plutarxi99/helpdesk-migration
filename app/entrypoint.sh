@@ -1,8 +1,6 @@
 #!/bin/sh
 set -e
 
-echo "Запуск Laravel entrypoint..."
-
 envsubst "$(printf '${%s} ' $(env | sed 's/=.*//'))" < .env.example > .env
 
 # Даем права на storage и bootstrap/cache
@@ -15,12 +13,7 @@ composer install --no-interaction --prefer-dist --optimize-autoloader
 php artisan config:clear
 php artisan cache:clear
 
-# Генерируем ключ (если нет)
-php artisan key:generate --force || true
-
-# Запускаем миграции (можно закомментить)
-php artisan migrate --force || true
-
-echo "Laravel готов! 🚀"
+# Запускаем миграции
+php artisan migrate
 
 exec "$@"
