@@ -6,6 +6,7 @@ use App\Enums\SendEnum;
 use App\Enums\TableSourceEnum;
 use App\Models\TableForMigration;
 use App\Repository\ApiHelpDeskUploadResource;
+use App\Repository\IdMapperRepository;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -31,9 +32,14 @@ class UploadItemJob implements ShouldQueue
      * Запуск Job
      *
      * @param ApiHelpDeskUploadResource $repository
+     * @param IdMapperRepository        $mapper
+     *
      * @return void
      */
-    public function handle(ApiHelpDeskUploadResource $repository): void
+    public function handle(
+        ApiHelpDeskUploadResource $repository,
+        IdMapperRepository        $mapper
+    ): void
     {
         try {
             $payload = $repository->mappingPayload($this->source, $this->item->json_data);
@@ -41,7 +47,28 @@ class UploadItemJob implements ShouldQueue
             $response = Http::HelpDeskEgor()->post($this->endpoint, $payload);
 
             if ($response->successful()) {
-                $this->item->update(['is_send' => SendEnum::SEND, 'error_message' => null]);
+                $json = $response->json();
+                $external_id = $this->item->json_data['id'];
+                $local_id = $json['id'];
+
+                $mapper->save($this->source, $external_id, $local_id,);
+
+                Log::info(
+                    "Успешно сохранен маппер",
+                    [
+                        'external_id' => $external_id,
+                        'local_id' => $local_id
+                    ]
+                );
+
+                $this->item->update(
+                    [
+                        'is_send' => SendEnum::SEND,
+                        'id_in_new_db' => $local_id,
+                        'error_message' => null
+                    ]
+                );
+
                 Log::info(
                     "Успешно загружен элемент",
                     [
@@ -49,6 +76,7 @@ class UploadItemJob implements ShouldQueue
                         'type' => $this->source->value
                     ]
                 );
+
             } else {
                 $this->item->update(['error_message' => json_encode($response->json())]);
                 Log::error(
@@ -84,7 +112,7 @@ class UploadItemJob implements ShouldQueue
      *
      * @return void
      */
-    public function failed(\Throwable $exception): void
+    public function failed(Throwable $exception): void
     {
         Log::error(
             "Job провалился",

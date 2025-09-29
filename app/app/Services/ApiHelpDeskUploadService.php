@@ -8,12 +8,14 @@ use App\Jobs\UploadCommentJob;
 use App\Jobs\UploadItemJob;
 use App\Models\TableForMigration;
 use App\Repository\ApiHelpDeskUploadResource;
+use App\Repository\IdMapperRepository;
 use Exception;
 
 class ApiHelpDeskUploadService
 {
     public function __construct(
         protected ApiHelpDeskUploadResource $repository,
+        protected IdMapperRepository $mapper,
     ) {}
 
     /**
@@ -66,17 +68,19 @@ class ApiHelpDeskUploadService
      */
     public function uploadComments(?int $from_id = null, ?int $to_id = null): array
     {
-        $count = 0;
+        $comments = TableForMigration::getNotSend(TableSourceEnum::COMMENTS, $from_id, $to_id);
+        $count = $comments->count();
 
-        foreach (TableForMigration::getNotSend(TableSourceEnum::COMMENTS, $from_id, $to_id) as $comment) {
+        foreach ($comments as $comment) {
             $data = $comment->json_data;
-            $ticket_id = $this->repository->mapTicketId($data['ticket_id']);
 
-            UploadCommentJob::dispatch($comment, $ticket_id);
-            $count++;
+            UploadCommentJob::dispatch(
+                $comment,
+                $this->mapper->map(TableSourceEnum::REQUEST, $data['ticket_id'])
+            );
         }
 
-        return $this->result("Поставлено в очередь {$count} комментариев", $count);
+        return $this->result("Поставлено в очередь $count комментариев", $count);
     }
 
     /**
@@ -89,20 +93,22 @@ class ApiHelpDeskUploadService
      */
     public function uploadAnswers(?int $from_id = null, ?int $to_id = null): array
     {
-        $count = 0;
-        $maxTextLength = 15000;
+        $max_text_length = 15000;
+        $answers = TableForMigration::getNotSend(TableSourceEnum::ANSWER, $from_id, $to_id);
+        $count = $answers->count();
 
-        foreach (TableForMigration::getNotSend(TableSourceEnum::ANSWER, $from_id, $to_id) as $answer) {
+        foreach ($answers as $answer) {
             $data = $answer->json_data;
-            $ticket_id = $this->repository->mapTicketId($data['ticket_id']);
-            $user_id = $this->repository->mapUserId($data['user_id'] ?? null);
-            $text_parts = mb_str_split($data['text'], $maxTextLength);
 
-            UploadAnswerJob::dispatch($answer, $ticket_id, $user_id, $text_parts);
-            $count++;
+            UploadAnswerJob::dispatch(
+                $answer,
+                $this->mapper->map(TableSourceEnum::REQUEST, $data['ticket_id']),
+                $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id']),
+                mb_str_split($data['text'], $max_text_length)
+            );
         }
 
-        return $this->result("Поставлено в очередь {$count} ответов", $count);
+        return $this->result("Поставлено в очередь $count ответов", $count);
     }
 
     /**

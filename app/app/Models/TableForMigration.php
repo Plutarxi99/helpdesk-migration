@@ -32,6 +32,7 @@ class TableForMigration extends Model
         'id_table_for_migrations',
         'is_send',
         'error_message',
+        'id_in_new_db',
     ];
 
     /**
