@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\TableSourceEnum;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Класс нужен для маппинга из переносимой системы в новую

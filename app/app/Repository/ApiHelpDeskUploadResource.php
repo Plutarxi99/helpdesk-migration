@@ -4,6 +4,8 @@ namespace App\Repository;
 
 use App\Enums\TableSourceEnum;
 use Exception;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ApiHelpDeskUploadResource
 {
@@ -45,13 +47,13 @@ class ApiHelpDeskUploadResource
     {
         $payload = [
             'title' => $data['title'] ?? null,
-            'description' => $data['description'] ?? null,
+            'description' => $data['description'] ??  "<p>" . $data['title'] . "</p>",
             'status_id' => $data['status_id'] ?? null,
             'priority_id' => $data['priority_id'] ?? null,
             'type_id' => $data['type_id'] ?? null,
             'department_id' => $data['department_id'] ?? 1,
-            'owner_id' => $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id'] ?? null),
-            'user_id' => $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id'] ?? null),
+            'owner_id' => $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id'], 1),
+            'user_id' => $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id'], 1),
             'user_email' => $data['user_email'] ?? null,
             'tags' => $data['tags'] ?? [],
         ];
@@ -81,8 +83,8 @@ class ApiHelpDeskUploadResource
             'language' => $data['language'] ?? null,
             'notifications' => $data['notifications'] ?? 0,
             'user_status' => $data['user_status'] ?? null,
-            'group_id' => $data['group']['id'] ?? 1,
-            'department' => $data['department'] ?? [1],
+            'group_id' => $data['group']['id'] ?? null,
+            'department' => $data['department'] ?? null,
             'custom_fields' => $data['custom_fields'] ?? [],
             'password' => 'password',
         ];
@@ -101,7 +103,7 @@ class ApiHelpDeskUploadResource
     {
         $payload = [
             'text' => $data['text'],
-            'user_id' => $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id']),
+            'user_id' => $this->mapper->map(TableSourceEnum::CONTACTS, $data['user_id'], 1),
         ];
 
         if (! empty($data['files'])) {
@@ -128,5 +130,40 @@ class ApiHelpDeskUploadResource
                 return ! is_null($v) && $v !== '';
             }
         );
+    }
+
+    /**
+     * Найти поможего пользователя по email
+     *
+     * @param string $email Email пользователя из материнской системы
+     *
+     * @return array|null
+     */
+    public function findUserByEmail(string $email): ?array
+    {
+        $page = 1;
+
+        do {
+            $response = Http::HelpDeskEgor()->get("/users", ['page' => $page]);
+
+            if (!$response->successful()) {
+                Log::error("Не удалось получить страницу {$page} пользователей");
+                return null;
+            }
+
+            $data = $response->json();
+            $users = $data['data'] ?? [];
+
+            foreach ($users as $user) {
+                if (($user['email'] ?? null) === $email) {
+                    return $user;
+                }
+            }
+
+            $total_pages = $data['pagination']['total_pages'] ?? 1;
+            $page++;
+        } while ($page <= $total_pages);
+
+        return null; // пользователь с таким email не найден
     }
 }

@@ -13,6 +13,9 @@ composer install --no-interaction --prefer-dist --optimize-autoloader
 php artisan config:clear
 php artisan cache:clear
 
+php artisan queue:clear redis
+php artisan queue:flush
+
 # Запускаем миграции
 php artisan migrate
 

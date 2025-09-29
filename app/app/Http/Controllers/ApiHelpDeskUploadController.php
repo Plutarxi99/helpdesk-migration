@@ -19,7 +19,7 @@ class ApiHelpDeskUploadController extends Controller
      */
     public function uploadRequests(): array
     {
-        return $this->service->uploadRequests(1, 1000);
+        return $this->service->uploadRequests(1, 900);
     }
 
     /**
@@ -30,27 +30,17 @@ class ApiHelpDeskUploadController extends Controller
      */
     public function uploadContacts(): array
     {
-        return $this->service->uploadContacts(1, 20100);
+        return $this->service->uploadContacts(1, 2094);
     }
 
     /**
-     * Закгрузка комментариев
+     * Загрузка сообщений
      *
      * @return array
      * @throws Exception
      */
-    public function uploadComments(): array
+    public function uploadMessages(): array
     {
-        return $this->service->uploadComments(1, 4000);
-    }
-
-    /**
-     * Загрузка Ответов
-     *
-     * @return array
-     */
-    public function uploadAnswers(): array
-    {
-        return $this->service->uploadAnswers(1, 4500);
+        return $this->service->uploadMessages(1, 200);
     }
 }

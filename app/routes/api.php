@@ -21,8 +21,7 @@ Route::middleware('api')
             function () {
                 Route::get('/upload-requests', 'uploadRequests');
                 Route::get('/upload-contacts', 'uploadContacts');
-                Route::get('/upload-answers', 'uploadAnswers');
-                Route::get('/upload-comments', 'uploadComments');
+                Route::get('/upload-messages', 'uploadMessages');
             }
         );
     }
