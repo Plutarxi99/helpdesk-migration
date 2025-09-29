@@ -18,10 +18,6 @@ class ApiHelpDeskRepository
      */
     public function updateOrCreateRow(TableSourceEnum $source, array $data): void
     {
-        if (data_get($data, 'id')) {
-            throw new InvalidArgumentException('Поле "id" обязательно для сохранения данных');
-        }
-
         TableForMigration::query()->firstOrCreate(
             [
                 'source' => $source,

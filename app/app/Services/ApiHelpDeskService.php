@@ -201,7 +201,7 @@ class ApiHelpDeskService
             $response = Http::HelpDesk()->get($url, ['page' => $page]);
 
             if (!$response->successful()) {
-                Log::error("Не удалось получить страницу {$page} для тикета {$ticket_id}");
+                Log::error("Не удалось получить страницу $page для тикета $ticket_id");
                 continue;
             }
 
