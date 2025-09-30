@@ -88,6 +88,9 @@ class CorrespondenceService
         $response = Http::HelpDeskEgor()->post("tickets/{$ticketId}/comments/", $payload);
 
         $remaining = (int) $response->header('X-Rate-Limit-Remaining', 300);
+        Log::warning('Сколько осталось запросов', [
+            'remaining' => $remaining,
+        ]);
         if ($remaining < 10) {
             $sleepSeconds = 60 - (time() % 60);
             \Log::warning("Скорость API почти исчерпана, спим $sleepSeconds сек");
@@ -131,6 +134,9 @@ class CorrespondenceService
             $response = Http::HelpDeskEgor()->post("tickets/{$ticketId}/posts/", $payload);
 
             $remaining = (int) $response->header('X-Rate-Limit-Remaining', 300);
+            Log::warning('Сколько осталось запросов', [
+                'remaining' => $remaining,
+            ]);
             if ($remaining < 10) {
                 $sleepSeconds = 60 - (time() % 60);
                 \Log::warning("Скорость API почти исчерпана, спим $sleepSeconds сек");
