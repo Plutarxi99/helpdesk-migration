@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 
 /**
  * @property int  $id_table_for_migrations
+ * @property int  $id_in_new_db
  * @property array $json_data
  *
  * @method static Builder<static>|TableForMigration query()

@@ -25,17 +25,17 @@ class CorrespondenceService
     /**
      * Загружаем переписку для одного тикета в новой системе
      *
-     * @param int $oldTicketId
-     * @param bool $stopOnError
+     * @param int $old_ticket_id
+     * @param bool $stop_on_error
      *
      * @return void
      */
-    public function uploadConversation(int $oldTicketId, bool $stopOnError = true): void
+    public function uploadConversation(int $old_ticket_id, bool $stop_on_error = true): void
     {
         // Маппим тикет на новую систему
-        $newTicketId = $this->mapper->map(TableSourceEnum::REQUEST, $oldTicketId);
-        if (!$newTicketId) {
-            Log::error("Не найден маппинг для тикета {$oldTicketId}");
+        $new_ticket_id = $this->mapper->map(TableSourceEnum::REQUEST, $old_ticket_id);
+        if (!$new_ticket_id) {
+            Log::error("Не найден маппинг для тикета {$old_ticket_id}");
             return;
         }
 
@@ -44,29 +44,32 @@ class CorrespondenceService
             ->whereIn('source', [TableSourceEnum::COMMENTS, TableSourceEnum::ANSWER])
             ->where('table_for_migrations.is_send', SendEnum::NOT_SEND)
             ->get()
-            ->filter(fn($item) => $item->json_data['ticket_id'] === $oldTicketId)
+            ->filter(fn($item) => $item->json_data['ticket_id'] === $old_ticket_id)
             ->sortBy(fn($item) => \DateTime::createFromFormat('H:i:s d.m.Y', $item->json_data['date_created']))
             ->values();
 
         foreach ($items as $item) {
             try {
                 if ($item->source === TableSourceEnum::COMMENTS) {
-                    $this->uploadComment($newTicketId, $item);
+                    $this->uploadComment($new_ticket_id, $item);
                 }
 
                 if ($item->source === TableSourceEnum::ANSWER) {
-                    $userId = $this->mapper->map(TableSourceEnum::CONTACTS, $item->json_data['user_id'], 1);
-                    $this->uploadAnswer($newTicketId, $item, $userId);
+                    $user_id = $this->mapper->map(TableSourceEnum::CONTACTS, $item->json_data['user_id'], 1);
+                    $this->uploadAnswer($new_ticket_id, $item, $user_id);
                 }
 
             } catch (Throwable $e) {
                 $item->update(['error_message' => $e->getMessage()]);
-                Log::error("Ошибка при загрузке элемента переписки", [
-                    'old_ticket_id' => $oldTicketId,
-                    'error' => $e->getMessage()
-                ]);
+                Log::error(
+                    "Ошибка при загрузке элемента переписки", 
+                    [
+                        'old_ticket_id' => $old_ticket_id,
+                        'error' => $e->getMessage()
+                    ]
+                );
 
-                if ($stopOnError) {
+                if ($stop_on_error) {
                     break;
                 }
             }
@@ -76,95 +79,98 @@ class CorrespondenceService
     /**
      * Загрузка комментария
      *
-     * @param int               $ticketId Id заявки к которой надо загрузить
+     * @param int               $ticket_id Id заявки к которой надо загрузить
      * @param TableForMigration $comment  Комментарий который надо загрузить
      *
      * @return void
      * @throws Exception
      */
-    private function uploadComment(int $ticketId, TableForMigration $comment): void
+    private function uploadComment(int $ticket_id, TableForMigration $comment): void
     {
         $payload = $this->repository->mappingPayload(TableSourceEnum::COMMENTS, $comment->json_data);
-        $response = Http::HelpDeskEgor()->post("tickets/{$ticketId}/comments/", $payload);
-
-        $remaining = (int) $response->header('X-Rate-Limit-Remaining', 300);
-        Log::warning('Сколько осталось запросов', [
-            'remaining' => $remaining,
-        ]);
-        if ($remaining < 10) {
-            $sleepSeconds = 60 - (time() % 60);
-            \Log::warning("Скорость API почти исчерпана, спим $sleepSeconds сек");
-            sleep($sleepSeconds);
-        }
+        $response = Http::HelpDeskEgor()->post("tickets/{$ticket_id}/comments/", $payload);
 
         if ($response->successful()) {
-            $comment->update(['is_send' => SendEnum::SEND, 'error_message' => null]);
-            Log::info("Комментарий успешно создан", [
-                'id' => $comment->id_table_for_migrations,
-                'ticket_id' => $ticketId
-            ]);
+            $new_id = $response->json('data.id');
+            $comment->update(
+                [
+                    'is_send' => SendEnum::SEND,
+                    'error_message' => null,
+                    'id_in_new_db' => $new_id,
+                ]
+            );
+            Log::info(
+                "Комментарий успешно создан",
+                [
+                    'id' => $comment->id_table_for_migrations,
+                    'ticket_id' => $ticket_id
+                ]
+            );
         } else {
             $comment->update(['error_message' => json_encode($response->json())]);
-            throw new \Exception("Ошибка создания комментария: {$response->status()}");
         }
     }
 
     /**
      * Загрузить ответ
      *
-     * @param int               $ticketId ID заявки
+     * @param int               $ticket_id ID заявки
      * @param TableForMigration $answer   Ответ, который надо загрузить
-     * @param int|null          $userId   Id пользователя
+     * @param int|null          $user_id   Id пользователя
      *
      * @return void
      * @throws Exception
      */
-    private function uploadAnswer(int $ticketId, TableForMigration $answer, ?int $userId): void
+    private function uploadAnswer(int $ticket_id, TableForMigration $answer, ?int $user_id): void
     {
         $data = $answer->json_data;
-        $maxLength = 15000;
-        $parts = mb_str_split($data['text'], $maxLength);
+        $max_length = 15000;
+        $parts = mb_str_split($data['text'], $max_length);
 
+        $last_id = null;
         foreach ($parts as $part) {
             $payload = [
                 'text' => $part,
-                'user_id' => $userId ?? $data['user_id']
+                'user_id' => $user_id ?? $data['user_id']
             ];
 
-            $response = Http::HelpDeskEgor()->post("tickets/{$ticketId}/posts/", $payload);
-
-            $remaining = (int) $response->header('X-Rate-Limit-Remaining', 300);
-            Log::warning('Сколько осталось запросов', [
-                'remaining' => $remaining,
-            ]);
-            if ($remaining < 10) {
-                $sleepSeconds = 60 - (time() % 60);
-                \Log::warning("Скорость API почти исчерпана, спим $sleepSeconds сек");
-                sleep($sleepSeconds);
-            }
+            $response = Http::HelpDeskEgor()->post("tickets/{$ticket_id}/posts/", $payload);
 
             if ($response->failed()) {
                 $answer->update(['error_message' => json_encode($response->json())]);
-                throw new Exception("Ошибка загрузки части ответа: {$response->status()}");
             }
+
+            // сохраняем id последнего поста
+            $last_id = $response->json('data.id');
         }
 
-        $answer->update(['is_send' => SendEnum::SEND, 'error_message' => null]);
-        Log::info("Ответ успешно загружен", [
-            'id' => $answer->id_table_for_migrations,
-            'ticket_id' => $ticketId
-        ]);
+        if ($last_id !== null) {
+            $answer->update([
+                'is_send' => SendEnum::SEND,
+                'error_message' => null,
+                'id_in_new_db' => $last_id,
+            ]);
+
+            Log::info(
+                "Ответ успешно загружен", 
+                [
+                    'old_id' => $answer->id_table_for_migrations,
+                    'new_id' => $last_id,
+                    'ticket_id' => $ticket_id,
+                ]
+            );
+        }
     }
 
     /**
      * Загружаем переписки по диапазону ticket_id внутри json_data
      *
-     * @param null|int $fromId От какой заявки
-     * @param null|int $toId   До какой заявки
+     * @param null|int $from_id От какой заявки
+     * @param null|int $to_id   До какой заявки
      *
      * @return array
      */
-    public function uploadMessages(?int $fromId = null, ?int $toId = null): array
+    public function uploadMessages(?int $from_id = null, ?int $to_id = null): array
     {
         $query = TableForMigration::query()
             ->whereIn('source', [TableSourceEnum::COMMENTS, TableSourceEnum::ANSWER])
@@ -173,16 +179,16 @@ class CorrespondenceService
 
         // Группируем по ticket_id внутри json_data
         $ticketsGrouped = $query
-            ->filter(fn($item) => ($fromId === null || $item->json_data['ticket_id'] >= $fromId) &&
-                ($toId === null || $item->json_data['ticket_id'] <= $toId))
+            ->filter(fn($item) => ($from_id === null || $item->json_data['ticket_id'] >= $from_id) &&
+                ($to_id === null || $item->json_data['ticket_id'] <= $to_id))
             ->groupBy(fn($item) => $item->json_data['ticket_id']);
 
-        foreach ($ticketsGrouped as $oldTicketId => $items) {
+        foreach ($ticketsGrouped as $old_ticket_id => $items) {
             try {
-                $this->uploadConversation((int) $oldTicketId);
+                $this->uploadConversation((int) $old_ticket_id);
             } catch (Throwable $e) {
                 Log::error(
-                    "Ошибка при загрузке переписки для тикета $oldTicketId",
+                    "Ошибка при загрузке переписки для тикета $old_ticket_id",
                     [
                         'error' => $e->getMessage()
                     ]

@@ -22,6 +22,9 @@ Route::middleware('api')
                 Route::get('/upload-requests', 'uploadRequests');
                 Route::get('/upload-contacts', 'uploadContacts');
                 Route::get('/upload-messages', 'uploadMessages');
+                Route::get('/upload-status-requests', 'updatedStatusesRequests');
+                Route::get('/upload-owner-requests', 'updatedOwnerRequests');
+                Route::get('/upload-followers-requests', 'updatedFollowersRequests');
             }
         );
     }
