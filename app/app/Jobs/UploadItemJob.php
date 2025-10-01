@@ -35,8 +35,8 @@ class UploadItemJob implements ShouldQueue
     /**
      * Запуск Job
      *
-     * @param ApiHelpDeskUploadResource $repository
-     * @param IdMapperRepository $mapper
+     * @param ApiHelpDeskUploadResource $repository Репозиторий для формирования данных для отправки
+     * @param IdMapperRepository $mapper Маппер для понимания кому загружать и от кого заявки
      *
      * @return void
      * @throws ConnectionException

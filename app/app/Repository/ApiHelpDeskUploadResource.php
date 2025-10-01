@@ -2,7 +2,10 @@
 
 namespace App\Repository;
 
+use App\Enums\SendEnum;
 use App\Enums\TableSourceEnum;
+use App\Models\TableForMigration;
+use DateTime;
 use Exception;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -52,7 +55,7 @@ class ApiHelpDeskUploadResource
     {
         $payload = [
             'title' => $data['title'] ?? null,
-            'description' => $data['description'] ??  '<p>' . $data['title'] . '</p>',
+            'description' => $this->getDescriptionsForRequest($data),
             'status_id' => $data['status_id'] ?? null,
             'priority_id' => $data['priority_id'] ?? null,
             'type_id' => $data['type_id'] ?? null,
@@ -171,5 +174,35 @@ class ApiHelpDeskUploadResource
         } while ($page <= $total_pages);
 
         return null; // пользователь с таким email не найден
+    }
+
+    /**
+     * Получение описание заявки, через ответы
+     *
+     * @param array $data Массив заявки, которая будет загружена
+     *
+     * @return string
+     */
+    public function getDescriptionsForRequest(array $data): string
+    {
+        // Берём самую старую запись по ticket_id и source = ANSWER
+        $record = TableForMigration::query()
+            ->where('source', TableSourceEnum::ANSWER->value)
+            ->whereJsonContains('json_data->ticket_id', $data['id'])
+            ->get()
+            ->sortBy(function ($item) {
+                return DateTime::createFromFormat('H:i:s d.m.Y', $item->json_data['date_created']);
+            })
+            ->first();
+
+        if (! $record) {
+            return ' ';
+        }
+
+        $record->is_send = SendEnum::SEND;
+
+        $record->save() && $record->refresh();
+
+        return $record->json_data['text'];
     }
 }

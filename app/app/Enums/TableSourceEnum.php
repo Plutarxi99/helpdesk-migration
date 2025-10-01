@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+/**
+ * Источник данных
+ */
 enum TableSourceEnum: int
 {
     case REQUEST = 1;
