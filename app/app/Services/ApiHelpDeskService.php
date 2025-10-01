@@ -5,19 +5,25 @@ namespace App\Services;
 use App\Enums\TableSourceEnum;
 use App\Models\TableForMigration;
 use App\Repository\ApiHelpDeskRepository;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Класс для загрузки с родительской платформы необходимых данных
+ */
 class ApiHelpDeskService
 {
     public function __construct(
         protected ApiHelpDeskRepository $repository
-    ) {}
+    ) {
+    }
 
     /**
      * Получение и сохранение заявок
-     * 
+     *
      * @return array
+     * @throws ConnectionException
      */
     public function getRequests(): array
     {
@@ -26,8 +32,9 @@ class ApiHelpDeskService
 
     /**
      * Получение и сохранение контактов
-     * 
+     *
      * @return array
+     * @throws ConnectionException
      */
     public function getContacts(): array
     {
@@ -36,7 +43,7 @@ class ApiHelpDeskService
 
     /**
      * Получение и сохранение ответов
-     * 
+     *
      * @return array
      */
     public function getAnswers(): array
@@ -46,7 +53,7 @@ class ApiHelpDeskService
 
     /**
      * Получение и сохранение комментариев
-     * 
+     *
      * @return array
      */
     public function getComments(): array
@@ -56,8 +63,9 @@ class ApiHelpDeskService
 
     /**
      * Получение и сохранение отделов
-     * 
+     *
      * @return array
+     * @throws ConnectionException
      */
     public function getDepartments(): array
     {
@@ -71,14 +79,15 @@ class ApiHelpDeskService
 
         return [
             'success' => true,
-            'saved_count' => $saved_count
+            'saved_count' => $saved_count,
         ];
     }
 
     /**
      * Получение и сохранение кастомных полей
-     * 
+     *
      * @return array
+     * @throws ConnectionException
      */
     public function getCustomFields(): array
     {
@@ -87,8 +96,9 @@ class ApiHelpDeskService
 
     /**
      * Получение и сохранение опций кастомных полей
-     * 
+     *
      * @return array
+     * @throws ConnectionException
      */
     public function getCustomFieldOptions(): array
     {
@@ -103,18 +113,19 @@ class ApiHelpDeskService
         return [
             'success' => true,
             'message' => "Processed options for {$fields->count()} fields",
-            'saved_count' => $saved_count
+            'saved_count' => $saved_count,
         ];
     }
 
     /**
      * Общий метод для получения данных с пагинацией
      *
-     * @param string          $endpoint
+     * @param string $endpoint
      * @param TableSourceEnum $source
-     * @param string          $type
+     * @param string $type
      *
      * @return array
+     * @throws ConnectionException
      */
     private function getAllPages(string $endpoint, TableSourceEnum $source, string $type): array
     {
@@ -139,18 +150,19 @@ class ApiHelpDeskService
             'success' => true,
             'message' => "Успешно загружено {$total_pages} страниц для {$type}",
             'total_pages' => $total_pages,
-            'saved_count' => $saved_count
+            'saved_count' => $saved_count,
         ];
     }
 
     /**
      * Общий метод для получения данных связанных с тикетами
      *
-     * @param string          $endpoint URL
-     * @param TableSourceEnum $source   Источник
-     * @param string          $type     Тип
+     * @param string $endpoint URL
+     * @param TableSourceEnum $source Источник
+     * @param string $type Тип
      *
      * @return array
+     * @throws ConnectionException
      */
     private function getTicketRelatedData(string $endpoint, TableSourceEnum $source, string $type): array
     {
@@ -159,7 +171,9 @@ class ApiHelpDeskService
 
         foreach ($tickets as $ticket) {
             $ticket_id = $ticket->json_data['id'] ?? null;
-            if (!$ticket_id) continue;
+            if (!$ticket_id) {
+                continue;
+            }
 
             Log::info("Загрузка $type для заявки $ticket_id");
             $saved_count += $this->processTicketPages($ticket_id, $endpoint, $source);
@@ -168,18 +182,19 @@ class ApiHelpDeskService
         return [
             'success' => true,
             'message' => "Saved $saved_count $type",
-            'saved_count' => $saved_count
+            'saved_count' => $saved_count,
         ];
     }
 
     /**
      * Обработка страниц для конкретного тикета
      *
-     * @param int             $ticket_id Заявка
-     * @param string          $endpoint  URL на который будет обращен
-     * @param TableSourceEnum $source    Источник запроса
+     * @param int $ticket_id Заявка
+     * @param string $endpoint URL на который будет обращен
+     * @param TableSourceEnum $source Источник запроса
      *
      * @return int
+     * @throws ConnectionException
      */
     private function processTicketPages(int $ticket_id, string $endpoint, TableSourceEnum $source): int
     {
@@ -189,6 +204,7 @@ class ApiHelpDeskService
         $response = Http::HelpDesk()->get($url);
         if (!$response->successful()) {
             Log::error("Не удалось получить данные для тикета {$ticket_id}");
+
             return 0;
         }
 
@@ -215,8 +231,9 @@ class ApiHelpDeskService
      * Обработка опций для поля
      *
      * @param int $field_id Поле для получения
-     * 
+     *
      * @return int
+     * @throws ConnectionException
      */
     private function processFieldOptions(int $field_id): int
     {
@@ -242,9 +259,9 @@ class ApiHelpDeskService
     /**
      * Обработка массива элементов
      *
-     * @param array           $items  Массив для сохранения
+     * @param array $items Массив для сохранения
      * @param TableSourceEnum $source Источник к чему приписать
-     * 
+     *
      * @return int
      */
     private function processItems(array $items, TableSourceEnum $source): int
@@ -254,6 +271,7 @@ class ApiHelpDeskService
             $this->repository->updateOrCreateRow($source, $item);
             $count++;
         }
+
         return $count;
     }
 }

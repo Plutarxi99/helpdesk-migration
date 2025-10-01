@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Класс нужен для маппинга из переносимой системы в новую
  *
- * @property int             $external_id   ID из родительской системы
- * @property TableSourceEnum $source        Источник из какой таблицы будет перенос
- * @property User            $local_user_id ID в новой системе
+ * @property int $external_id ID из родительской системы
+ * @property TableSourceEnum $source Источник из какой таблицы будет перенос
+ * @property User $local_user_id ID в новой системе
  */
 class ExternalIdMap extends Model
 {
@@ -29,8 +29,8 @@ class ExternalIdMap extends Model
     /**
      * Получить локальный ID по источнику и внешнему ID
      *
-     * @param TableSourceEnum $source      Источник переноса
-     * @param int             $external_id Внешний источник
+     * @param TableSourceEnum $source Источник переноса
+     * @param int $external_id Внешний источник
      *
      * @return int|null
      */
@@ -45,9 +45,9 @@ class ExternalIdMap extends Model
     /**
      * Сохранить в бд
      *
-     * @param TableSourceEnum $source      Источник переноса
-     * @param int             $external_id Внешний ID
-     * @param int             $local_id    локальный ID
+     * @param TableSourceEnum $source Источник переноса
+     * @param int $external_id Внешний ID
+     * @param int $local_id локальный ID
      *
      * @return void
      */

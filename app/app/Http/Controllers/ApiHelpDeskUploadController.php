@@ -7,15 +7,20 @@ use App\Models\TableForMigration;
 use App\Repository\IdMapperRepository;
 use App\Services\ApiHelpDeskUploadService;
 use Exception;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Класс для загрузки в новую систему данных
+ */
 class ApiHelpDeskUploadController extends Controller
 {
     public function __construct(
         protected readonly ApiHelpDeskUploadService $service,
         protected readonly IdMapperRepository $mapper
-    ) {}
+    ) {
+    }
 
     /**
      * Загрузка Заявок
@@ -54,6 +59,7 @@ class ApiHelpDeskUploadController extends Controller
      * Обновление статусов у всех заяввок
      *
      * @return array
+     * @throws ConnectionException
      */
     public function updatedStatusesRequests(): array
     {
@@ -77,6 +83,7 @@ class ApiHelpDeskUploadController extends Controller
      * Обновление владельцев у всех заявок
      *
      * @return array
+     * @throws ConnectionException
      */
     public function updatedOwnerRequests(): array
     {
@@ -108,6 +115,7 @@ class ApiHelpDeskUploadController extends Controller
      * Обновить фололоверов
      *
      * @return array
+     * @throws ConnectionException
      */
     public function updatedFollowersRequests(): array
     {

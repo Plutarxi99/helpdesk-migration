@@ -4,20 +4,25 @@ namespace App\Repository;
 
 use App\Enums\TableSourceEnum;
 use Exception;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Ресурс для образования полезных данных для загрузки в систему
+ */
 class ApiHelpDeskUploadResource
 {
     public function __construct(
         protected IdMapperRepository $mapper
-    ) {}
+    ) {
+    }
 
     /**
      * Получить полезные нагрузку в зависимости от источника
      *
      * @param TableSourceEnum $source Источник куда будет загружаться
-     * @param array           $data   Данные для загрузки
+     * @param array $data Данные для загрузки
      *
      * @return array
      * @throws Exception
@@ -47,7 +52,7 @@ class ApiHelpDeskUploadResource
     {
         $payload = [
             'title' => $data['title'] ?? null,
-            'description' => $data['description'] ??  "<p>" . $data['title'] . "</p>",
+            'description' => $data['description'] ??  '<p>' . $data['title'] . '</p>',
             'status_id' => $data['status_id'] ?? null,
             'priority_id' => $data['priority_id'] ?? null,
             'type_id' => $data['type_id'] ?? null,
@@ -122,14 +127,13 @@ class ApiHelpDeskUploadResource
      */
     private function cleanPayload(array $data): array
     {
-        return array_filter($data, function($v) {
-                if (is_array($v)) {
-                        return true;
-                    }
-
-                return ! is_null($v) && $v !== '';
+        return array_filter($data, function ($v) {
+            if (is_array($v)) {
+                return true;
             }
-        );
+
+            return ! is_null($v) && $v !== '';
+        });
     }
 
     /**
@@ -138,16 +142,18 @@ class ApiHelpDeskUploadResource
      * @param string $email Email пользователя из материнской системы
      *
      * @return array|null
+     * @throws ConnectionException
      */
     public function findUserByEmail(string $email): ?array
     {
         $page = 1;
 
         do {
-            $response = Http::HelpDeskEgor()->get("/users", ['page' => $page]);
+            $response = Http::HelpDeskEgor()->get('/users', ['page' => $page]);
 
             if (!$response->successful()) {
                 Log::error("Не удалось получить страницу {$page} пользователей");
+
                 return null;
             }
 

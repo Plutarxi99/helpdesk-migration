@@ -13,9 +13,10 @@ class ApiHelpDeskUploadService
 {
     public function __construct(
         protected ApiHelpDeskUploadResource $repository,
-        protected IdMapperRepository        $mapper,
-        protected CorrespondenceService     $correspondence,
-    ) {}
+        protected IdMapperRepository $mapper,
+        protected CorrespondenceService $correspondence,
+    ) {
+    }
 
     /**
      * Загружает заявки
@@ -32,7 +33,8 @@ class ApiHelpDeskUploadService
             TableSourceEnum::REQUEST,
             'tickets/',
             'заявок',
-            $from_id, $to_id
+            $from_id,
+            $to_id
         );
     }
 
@@ -40,7 +42,7 @@ class ApiHelpDeskUploadService
      * Загружает пользователей
      *
      * @param null|int $from_id ID от какого заполнять
-     * @param null|int $to_id   ID до какого вставлять
+     * @param null|int $to_id ID до какого вставлять
      *
      * @return array
      * @throws Exception
@@ -60,7 +62,7 @@ class ApiHelpDeskUploadService
      * Загружает переписку по диапазону id_table_for_migrations
      *
      * @param null|int $from_id ID от какого заполнять
-     * @param null|int $to_id   ID до какого вставлять
+     * @param null|int $to_id ID до какого вставлять
      *
      * @return array
      * @throws Exception
@@ -73,11 +75,11 @@ class ApiHelpDeskUploadService
     /**
      * Запуск одного элемента на отправку
      *
-     * @param TableSourceEnum $source   Источник
-     * @param string          $endpoint URL
-     * @param string          $typeName Тип
-     * @param int|null        $from_id  ID от чего
-     * @param int|null        $to_id    ID до куда
+     * @param TableSourceEnum $source Источник
+     * @param string $endpoint URL
+     * @param string $typeName Тип
+     * @param int|null $from_id ID от чего
+     * @param int|null $to_id ID до куда
      *
      * @return array
      */
@@ -100,10 +102,10 @@ class ApiHelpDeskUploadService
 
     /**
      * Формирование результата
-     * 
+     *
      * @param string $message Сообщение
-     * @param int    $count   Количество
-     * 
+     * @param int $count Количество
+     *
      * @return array
      */
     private function result(string $message, int $count): array
@@ -111,7 +113,7 @@ class ApiHelpDeskUploadService
         return [
             'success' => true,
             'message' => $message,
-            'queued_count' => $count
+            'queued_count' => $count,
         ];
     }
 }

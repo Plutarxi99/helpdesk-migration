@@ -8,7 +8,8 @@ class ApiHelpDeskController extends Controller
 {
     public function __construct(
         protected readonly ApiHelpDeskService $service
-    ) {}
+    ) {
+    }
 
     /**
      * Получение заявок

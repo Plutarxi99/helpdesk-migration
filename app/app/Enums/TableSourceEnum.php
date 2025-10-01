@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum TableSourceEnum:int
+enum TableSourceEnum: int
 {
     case REQUEST = 1;
     case CONTACTS = 2;

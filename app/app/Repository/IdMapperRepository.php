@@ -13,9 +13,9 @@ class IdMapperRepository
     /**
      * Получение ID из нашей системы по внешнему ID
      *
-     * @param TableSourceEnum $source      Источник заявки
-     * @param int             $external_id Внешний ID
-     * @param int|null        $default     Дефолтное значение
+     * @param TableSourceEnum $source Источник заявки
+     * @param int $external_id Внешний ID
+     * @param int|null $default Дефолтное значение
      *
      * @return int|null
      */
@@ -27,9 +27,9 @@ class IdMapperRepository
     /**
      * Сохранить значение для маппинга
      *
-     * @param TableSourceEnum $source      Источник переноса
-     * @param int             $external_id Внешний ID
-     * @param int             $local_id    ID в новой системе
+     * @param TableSourceEnum $source Источник переноса
+     * @param int $external_id Внешний ID
+     * @param int $local_id ID в новой системе
      *
      * @return void
      */

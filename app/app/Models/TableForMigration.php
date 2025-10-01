@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * @property int  $id_table_for_migrations
- * @property int  $id_in_new_db
+ * @property int $id_table_for_migrations
+ * @property int $id_in_new_db
  * @property array $json_data
  *
  * @method static Builder<static>|TableForMigration query()
@@ -50,8 +50,8 @@ class TableForMigration extends Model
         return TableForMigration::query()
             ->where('source', $source_enum)
             ->where('is_send', SendEnum::NOT_SEND)
-            ->when(!is_null($from_id), fn($q) => $q->where('id_table_for_migrations', '>=', $from_id))
-            ->when(!is_null($to_id), fn($q) => $q->where('id_table_for_migrations', '<=', $to_id))
+            ->when(!is_null($from_id), fn ($q) => $q->where('id_table_for_migrations', '>=', $from_id))
+            ->when(!is_null($to_id), fn ($q) => $q->where('id_table_for_migrations', '<=', $to_id))
             ->orderBy('id_table_for_migrations')
             ->get();
     }

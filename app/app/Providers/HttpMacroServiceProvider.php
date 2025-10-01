@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Services\RateLimiter;
 use GuzzleHttp\HandlerStack;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -10,10 +9,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Класс прослойка для обращения к API
+ */
 class HttpMacroServiceProvider extends ServiceProvider
 {
     /**
      * Загрузка макросов
+     *
+     * @return void
      */
     public function boot(): void
     {
@@ -51,8 +55,7 @@ class HttpMacroServiceProvider extends ServiceProvider
                         'Authorization' => 'Basic ' . base64_encode(config('services.help_desk.api_key')),
                     ]
                 )->withOptions(['handler' => $stack]);
-            }
-        );
+        });
 
         Http::macro('HelpDeskEgor', function (): PendingRequest {
             $stack = HandlerStack::create();
@@ -62,7 +65,8 @@ class HttpMacroServiceProvider extends ServiceProvider
                     return $handler($request, $options)->then(function (ResponseInterface $response) {
                         $remaining = (int) $response->getHeaderLine('X-Rate-Limit-Remaining') ?: 300;
 
-                        Log::warning('Сколько осталось запросов',
+                        Log::warning(
+                            'Сколько осталось запросов',
                             [
                                 'remaining' => $remaining,
                             ]
@@ -74,12 +78,10 @@ class HttpMacroServiceProvider extends ServiceProvider
                             sleep($sleepSeconds);
                         }
 
-                            return $response;
-                        }
-                        );
-                    };
-                }
-            );
+                        return $response;
+                    });
+                };
+            });
 
             return Http::baseUrl(config('services.help_desk.domain_egor'))
                 ->timeout(30)
@@ -95,7 +97,6 @@ class HttpMacroServiceProvider extends ServiceProvider
                         'handler' => $stack,
                     ]
                 );
-            }
-        );
+        });
     }
 }

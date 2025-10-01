@@ -20,7 +20,8 @@ class CorrespondenceService
     public function __construct(
         protected ApiHelpDeskUploadResource $repository,
         protected IdMapperRepository $mapper
-    ) {}
+    ) {
+    }
 
     /**
      * Загружаем переписку для одного тикета в новой системе
@@ -36,6 +37,7 @@ class CorrespondenceService
         $new_ticket_id = $this->mapper->map(TableSourceEnum::REQUEST, $old_ticket_id);
         if (!$new_ticket_id) {
             Log::error("Не найден маппинг для тикета {$old_ticket_id}");
+
             return;
         }
 
@@ -44,8 +46,8 @@ class CorrespondenceService
             ->whereIn('source', [TableSourceEnum::COMMENTS, TableSourceEnum::ANSWER])
             ->where('table_for_migrations.is_send', SendEnum::NOT_SEND)
             ->get()
-            ->filter(fn($item) => $item->json_data['ticket_id'] === $old_ticket_id)
-            ->sortBy(fn($item) => \DateTime::createFromFormat('H:i:s d.m.Y', $item->json_data['date_created']))
+            ->filter(fn ($item) => $item->json_data['ticket_id'] === $old_ticket_id)
+            ->sortBy(fn ($item) => \DateTime::createFromFormat('H:i:s d.m.Y', $item->json_data['date_created']))
             ->values();
 
         foreach ($items as $item) {
@@ -58,14 +60,13 @@ class CorrespondenceService
                     $user_id = $this->mapper->map(TableSourceEnum::CONTACTS, $item->json_data['user_id'], 1);
                     $this->uploadAnswer($new_ticket_id, $item, $user_id);
                 }
-
             } catch (Throwable $e) {
                 $item->update(['error_message' => $e->getMessage()]);
                 Log::error(
-                    "Ошибка при загрузке элемента переписки", 
+                    'Ошибка при загрузке элемента переписки',
                     [
                         'old_ticket_id' => $old_ticket_id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]
                 );
 
@@ -79,8 +80,8 @@ class CorrespondenceService
     /**
      * Загрузка комментария
      *
-     * @param int               $ticket_id Id заявки к которой надо загрузить
-     * @param TableForMigration $comment  Комментарий который надо загрузить
+     * @param int $ticket_id Id заявки к которой надо загрузить
+     * @param TableForMigration $comment Комментарий который надо загрузить
      *
      * @return void
      * @throws Exception
@@ -100,10 +101,10 @@ class CorrespondenceService
                 ]
             );
             Log::info(
-                "Комментарий успешно создан",
+                'Комментарий успешно создан',
                 [
                     'id' => $comment->id_table_for_migrations,
-                    'ticket_id' => $ticket_id
+                    'ticket_id' => $ticket_id,
                 ]
             );
         } else {
@@ -114,9 +115,9 @@ class CorrespondenceService
     /**
      * Загрузить ответ
      *
-     * @param int               $ticket_id ID заявки
-     * @param TableForMigration $answer   Ответ, который надо загрузить
-     * @param int|null          $user_id   Id пользователя
+     * @param int $ticket_id ID заявки
+     * @param TableForMigration $answer Ответ, который надо загрузить
+     * @param int|null $user_id Id пользователя
      *
      * @return void
      * @throws Exception
@@ -131,7 +132,7 @@ class CorrespondenceService
         foreach ($parts as $part) {
             $payload = [
                 'text' => $part,
-                'user_id' => $user_id ?? $data['user_id']
+                'user_id' => $user_id ?? $data['user_id'],
             ];
 
             $response = Http::HelpDeskEgor()->post("tickets/{$ticket_id}/posts/", $payload);
@@ -152,7 +153,7 @@ class CorrespondenceService
             ]);
 
             Log::info(
-                "Ответ успешно загружен", 
+                'Ответ успешно загружен',
                 [
                     'old_id' => $answer->id_table_for_migrations,
                     'new_id' => $last_id,
@@ -166,7 +167,7 @@ class CorrespondenceService
      * Загружаем переписки по диапазону ticket_id внутри json_data
      *
      * @param null|int $from_id От какой заявки
-     * @param null|int $to_id   До какой заявки
+     * @param null|int $to_id До какой заявки
      *
      * @return array
      */
@@ -190,7 +191,7 @@ class CorrespondenceService
                 Log::error(
                     "Ошибка при загрузке переписки для тикета $old_ticket_id",
                     [
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]
                 );
             }
@@ -198,7 +199,7 @@ class CorrespondenceService
 
         return [
             'success' => true,
-            'processed' => $ticketsGrouped->count()
+            'processed' => $ticketsGrouped->count(),
         ];
     }
 }

@@ -11,7 +11,7 @@ class ApiHelpDeskRepository
      * Универсальное сохранение данных в TableForMigration
      *
      * @param TableSourceEnum $source Источник данных (REQUEST, CONTACTS, ANSWER и т.д.)
-     * @param array           $data   Данные для сохранения
+     * @param array $data Данные для сохранения
      *
      * @return void
      */

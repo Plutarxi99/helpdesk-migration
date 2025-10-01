@@ -40,6 +40,6 @@ return [
         'domain' => env('HELP_DESK_DOMAIN'),
         'api_key_egor' => env('HELP_DESK_API_KEY_EGOR'),
         'domain_egor' => env('HELP_DESK_DOMAIN_EGOR'),
-    ]
+    ],
 
 ];

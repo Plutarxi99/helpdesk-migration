@@ -10,6 +10,7 @@ use App\Repository\IdMapperRepository;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -20,27 +21,30 @@ use Throwable;
  */
 class UploadItemJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
 
     public function __construct(
         private readonly TableForMigration $item,
-        private readonly TableSourceEnum   $source,
-        private string                     $endpoint
-    ) {}
+        private readonly TableSourceEnum $source,
+        private readonly string $endpoint
+    ) {
+    }
 
     /**
      * Запуск Job
      *
      * @param ApiHelpDeskUploadResource $repository
-     * @param IdMapperRepository        $mapper
+     * @param IdMapperRepository $mapper
      *
      * @return void
+     * @throws ConnectionException
      */
     public function handle(
         ApiHelpDeskUploadResource $repository,
-        IdMapperRepository        $mapper,
-    ): void
-    {
+        IdMapperRepository $mapper,
+    ): void {
         try {
             $payload = $repository->mappingPayload($this->source, $this->item->json_data);
 
@@ -53,10 +57,10 @@ class UploadItemJob implements ShouldQueue
                 $mapper->save($this->source, $external_id, $local_id);
 
                 Log::info(
-                    "Успешно сохранен маппер",
+                    'Успешно сохранен маппер',
                     [
                         'external_id' => $external_id,
-                        'local_id' => $local_id
+                        'local_id' => $local_id,
                     ]
                 );
 
@@ -64,22 +68,21 @@ class UploadItemJob implements ShouldQueue
                     [
                         'is_send' => SendEnum::SEND,
                         'id_in_new_db' => $local_id,
-                        'error_message' => null
+                        'error_message' => null,
                     ]
                 );
 
                 Log::info(
-                    "Успешно загружен элемент",
+                    'Успешно загружен элемент',
                     [
                         'id' => $this->item->id_table_for_migrations,
-                        'type' => $this->source->value
+                        'type' => $this->source->value,
                     ]
                 );
-
             } else {
                 $this->item->update(['error_message' => json_encode($response->json())]);
                 Log::error(
-                    "Ошибка при загрузке",
+                    'Ошибка при загрузке',
                     [
                         'id' => $this->item->id_table_for_migrations,
                         'type' => $this->source->value,
@@ -106,12 +109,12 @@ class UploadItemJob implements ShouldQueue
                         [
                             'is_send' => SendEnum::SEND,
                             'id_in_new_db' => $local_id,
-                            'error_message' => null
+                            'error_message' => null,
                         ]
                     );
 
                     Log::info(
-                        "Email уже существует, элемент сопоставлен",
+                        'Email уже существует, элемент сопоставлен',
                         ['email' => $email, 'local_id' => $local_id]
                     );
 
@@ -122,11 +125,11 @@ class UploadItemJob implements ShouldQueue
             $this->item->update(['error_message' => $e->getMessage()]);
 
             Log::error(
-                "Ошибка в Job",
+                'Ошибка в Job',
                 [
                     'id' => $this->item->id_table_for_migrations,
                     'json' => $this->item->json_data,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]
             );
         }
@@ -142,10 +145,10 @@ class UploadItemJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         Log::error(
-            "Job провалился",
+            'Job провалился',
             [
                 'id' => $this->item->id_table_for_migrations,
-                'error' => $exception->getMessage()
+                'error' => $exception->getMessage(),
             ]
         );
     }
