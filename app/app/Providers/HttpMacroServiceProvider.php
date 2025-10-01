@@ -17,9 +17,7 @@ class HttpMacroServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-
         Http::macro('HelpDesk', function (): PendingRequest {
-            $rate_limiter_main = new RateLimiter('main');
             $stack = HandlerStack::create();
 
             // добавляем middleware
@@ -52,16 +50,11 @@ class HttpMacroServiceProvider extends ServiceProvider
                         'Accept' => 'application/json',
                         'Authorization' => 'Basic ' . base64_encode(config('services.help_desk.api_key')),
                     ]
-                )
-                ->beforeSending(function () use ($rate_limiter_main) {
-                        $rate_limiter_main->hit();
-                    }
                 )->withOptions(['handler' => $stack]);
             }
         );
 
         Http::macro('HelpDeskEgor', function (): PendingRequest {
-            $rate_limiter_egor = new RateLimiter('egor');
             $stack = HandlerStack::create();
 
             $stack->push(function (callable $handler) {
@@ -97,10 +90,6 @@ class HttpMacroServiceProvider extends ServiceProvider
                         'Accept' => 'application/json',
                         'Authorization' => 'Basic ' . base64_encode(config('services.help_desk.api_key_egor')),
                     ]
-                )
-                ->beforeSending(function () use ($rate_limiter_egor) {
-                        $rate_limiter_egor->hit();
-                    }
                 )->withOptions(
                     [
                         'handler' => $stack,
