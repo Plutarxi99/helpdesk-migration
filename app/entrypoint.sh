@@ -10,13 +10,14 @@ chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 # Если нет vendor — ставим зависимости
 composer install --no-interaction --prefer-dist --optimize-autoloader
 
+# Запускаем миграции
+php artisan migrate
+
 php artisan config:clear
 php artisan cache:clear
 
 php artisan queue:clear redis
 php artisan queue:flush
 
-# Запускаем миграции
-php artisan migrate
 
 exec "$@"
